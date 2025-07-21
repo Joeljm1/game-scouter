@@ -1,0 +1,29 @@
+// Package jsonlog the package used for loggging
+package jsonlog
+
+import (
+	"context"
+	"io"
+	"log/slog"
+	"runtime/debug"
+)
+
+type CustomHandler struct {
+	slog.Handler
+}
+
+func (h CustomHandler) Handle(ctx context.Context, r slog.Record) error {
+	// Add stack trace if it's an error level
+	if r.Level >= slog.LevelError {
+		r.AddAttrs(slog.String("stack", string(debug.Stack())))
+	}
+
+	return h.Handler.Handle(ctx, r)
+}
+
+func New(w io.Writer) *slog.Logger {
+	baseH := slog.NewJSONHandler(w, &slog.HandlerOptions{})
+	customH := CustomHandler{baseH}
+	logger := slog.New(customH)
+	return logger
+}
