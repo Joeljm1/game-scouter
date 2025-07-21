@@ -16,8 +16,7 @@ func (app *Application) ErrResponse(w http.ResponseWriter, r *http.Request, stat
 	data := Envelope{"Error": msg}
 	err := app.WriteJSON(w, status, data, nil)
 	if err != nil {
-		app.LogErr("Server Error", r, err)
-		w.WriteHeader(http.StatusInternalServerError)
+		app.ServerErrResponse(w, r, err)
 	}
 }
 
@@ -36,4 +35,12 @@ func (app *Application) BadReqResponse(w http.ResponseWriter, r *http.Request, e
 func (app *Application) RateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
 	msg := "Your rate limit has exceeded. Please try after some time"
 	app.ErrResponse(w, r, http.StatusTooManyRequests, msg)
+}
+
+func (app *Application) ValidationErrResponse(w http.ResponseWriter, r *http.Request, errMap map[string]string) {
+	data := Envelope{"Error": errMap}
+	err := app.WriteJSON(w, http.StatusBadRequest, data, nil)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+	}
 }
