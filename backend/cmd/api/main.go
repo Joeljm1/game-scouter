@@ -2,57 +2,39 @@ package main
 
 import (
 	"flag"
+	"game-scouter-api/internal/application"
 	"game-scouter-api/internal/jsonlog"
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 )
 
 const version = "1.0.0"
 
-type config struct {
-	port    int
-	env     string
-	limiter struct {
-		rps     float64
-		burst   int
-		enabled bool
-	}
-	cors struct {
-		trustedOrgins []string
-	}
-}
-
-type application struct {
-	cfg          config
-	logger       *slog.Logger
-	backgroundWG sync.WaitGroup
-}
-
 func main() {
-	cfg := config{}
+	cfg := application.Config{}
 
-	flag.IntVar(&cfg.port, "port", 4000, "API server port")
-	flag.StringVar(&cfg.env, "environment", "development", "development|staging|production")
+	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
+	flag.StringVar(&cfg.Env, "environment", "development", "development|staging|production")
 
-	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter for max usage per sec")
-	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter for max burst usage ")
-	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+	flag.Float64Var(&cfg.Limiter.Rps, "limiter-rps", 2, "Rate limiter for max usage per sec")
+	flag.IntVar(&cfg.Limiter.Burst, "limiter-burst", 4, "Rate limiter for max burst usage ")
+	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", true, "Enable rate limiter")
 
 	flag.Func("cors-trusted-orgins", "Trusted CORS orgins (space seperated)", func(s string) error {
-		cfg.cors.trustedOrgins = strings.Fields(" ")
+		cfg.Cors.TrustedOrgins = strings.Fields(" ")
 		return nil
 	})
 	flag.Parse()
 
-	app := application{
-		cfg:    cfg,
-		logger: jsonlog.New(os.Stdout),
+	app := &application.Application{
+		Cfg:    cfg,
+		Logger: jsonlog.New(os.Stdout),
 	}
-	err := app.run()
+	serverApp := serverApplication{Application: app}
+	err := serverApp.run()
 	if err != nil {
-		app.logger.Error("Error running server",
+		app.Logger.Error("Error running server",
 			slog.String("error", err.Error()),
 		)
 		os.Exit(1)

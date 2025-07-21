@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-func (app *application) run() error {
+func (app *serverApplication) run() error {
 	server := http.Server{
-		Addr:         fmt.Sprintf(":%v", app.cfg.port),
+		Addr:         fmt.Sprintf(":%v", app.Cfg.Port),
 		Handler:      app.routes(),
 		ReadTimeout:  10 * time.Second,
 		IdleTimeout:  time.Minute,
@@ -25,20 +25,20 @@ func (app *application) run() error {
 		sig := make(chan os.Signal, 1) // Need buffered cause os wont wait
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		s := <-sig
-		app.logger.Info("Shutting down Server", slog.String("signal", s.String()))
+		app.Logger.Info("Shutting down Server", slog.String("signal", s.String()))
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		err := server.Shutdown(ctx)
 		if err != nil {
 			shutDown <- err
 		}
-		app.logger.Info("waiting for background processes")
-		app.backgroundWG.Wait()
+		app.Logger.Info("waiting for background processes")
+		app.BackgroundWG.Wait()
 		shutDown <- nil
 	}()
-	app.logger.Info("Starting server ",
-		slog.String("Addr", fmt.Sprintf(":%v", app.cfg.port)),
-		slog.String("Env", app.cfg.env),
+	app.Logger.Info("Starting server ",
+		slog.String("Addr", fmt.Sprintf(":%v", app.Cfg.Port)),
+		slog.String("Env", app.Cfg.Env),
 	)
 
 	err := server.ListenAndServe()
@@ -49,9 +49,9 @@ func (app *application) run() error {
 	if err != nil {
 		return err
 	}
-	app.logger.Info("stopped server",
-		slog.String("Addr", fmt.Sprintf(":%v", app.cfg.port)),
-		slog.String("Env", app.cfg.env),
+	app.Logger.Info("stopped server",
+		slog.String("Addr", fmt.Sprintf(":%v", app.Cfg.Port)),
+		slog.String("Env", app.Cfg.Env),
 	)
 	return nil
 }

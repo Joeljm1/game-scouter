@@ -14,12 +14,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func (app *application) Metrics(next http.Handler) http.Handler {
+func (app *serverApplication) Metrics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// m := httpsnoop.CaptureMetrics(next, w, r)
 		newW := customrespwriter.New(w)
 		next.ServeHTTP(newW, r)
-		app.logger.Info("API call",
+		app.Logger.Info("API call",
 			slog.String("Path", r.URL.String()),
 			slog.String("Method", r.Method),
 			slog.String("Duration", time.Since(newW.StartTime).String()),
@@ -28,20 +28,20 @@ func (app *application) Metrics(next http.Handler) http.Handler {
 	})
 }
 
-func (app *application) RecoverPanic(next http.Handler) http.Handler {
+func (app *serverApplication) RecoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				w.Header().Set("Connection", "close")
-				app.serverErrResponse(w, r, fmt.Errorf("%s", err))
-				app.logger.Error("Panic", slog.Any("Error", err))
+				app.ServerErrResponse(w, r, fmt.Errorf("%s", err))
+				app.Logger.Error("Panic", slog.Any("Error", err))
 			}
 		}()
 		next.ServeHTTP(w, r)
 	})
 }
 
-func (app *application) RateLimit(next http.Handler) http.Handler {
+func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 	type client struct {
 		limiter     *rate.Limiter
 		lastAccesed time.Time
@@ -59,22 +59,22 @@ func (app *application) RateLimit(next http.Handler) http.Handler {
 		time.Sleep(time.Minute)
 	}()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if app.cfg.limiter.enabled {
+		if app.Cfg.Limiter.Enabled {
 			ip, _, err := net.SplitHostPort(r.RemoteAddr)
 			if err != nil {
-				app.serverErrResponse(w, r, err)
+				app.ServerErrResponse(w, r, err)
 				return
 			}
 			mu.Lock()
 			if _, ok := clients[ip]; !ok {
 				clients[ip] = &client{
-					limiter: rate.NewLimiter(rate.Limit(app.cfg.limiter.rps), app.cfg.limiter.burst),
+					limiter: rate.NewLimiter(rate.Limit(app.Cfg.Limiter.Rps), app.Cfg.Limiter.Burst),
 				}
 			}
 			clients[ip].lastAccesed = time.Now()
 			if !clients[ip].limiter.Allow() {
 				mu.Unlock()
-				app.rateLimitExceededResponse(w, r)
+				app.RateLimitExceededResponse(w, r)
 				return
 			}
 			mu.Unlock()
@@ -83,13 +83,13 @@ func (app *application) RateLimit(next http.Handler) http.Handler {
 	})
 }
 
-func (app *application) EnableCORS(next http.Handler) http.Handler {
+func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Orgin")
 		w.Header().Add("Vary", "Access-Control-Request-Method")
 		orgin := r.Header.Get("Orgin")
-		if orgin != "" && len(app.cfg.cors.trustedOrgins) != 0 {
-			if slices.Contains(app.cfg.cors.trustedOrgins, orgin) {
+		if orgin != "" && len(app.Cfg.Cors.TrustedOrgins) != 0 {
+			if slices.Contains(app.Cfg.Cors.TrustedOrgins, orgin) {
 				w.Header().Set("Access-Control-Allow-Orgin", orgin)
 				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" { // if preflight request
 					w.Header().Set("Access-Control-Allow-Methods", "OPTION, PUT, PATCH, DELETE")

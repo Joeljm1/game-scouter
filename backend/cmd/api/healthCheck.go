@@ -1,19 +1,20 @@
 package main
 
 import (
+	"game-scouter-api/internal/application"
 	"net/http"
 )
 
-func (app *application) healthCheck(w http.ResponseWriter, r *http.Request) {
-	data := envelope{
+func (app *serverApplication) healthCheck(w http.ResponseWriter, r *http.Request) {
+	data := application.Envelope{
 		"Status": "Available",
 		"ApiInfo": map[string]string{
 			"Version":     version,
-			"environment": app.cfg.env,
+			"environment": app.Cfg.Env,
 		},
 	}
-	err := app.writeJSON(w, http.StatusOK, data, nil)
+	err := app.WriteJSON(w, http.StatusOK, data, nil)
 	if err != nil {
-		app.serverErrResponse(w, r, err)
+		app.ServerErrResponse(w, r, err)
 	}
 }

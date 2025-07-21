@@ -1,4 +1,4 @@
-package main
+package application
 
 import (
 	"encoding/json"
@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-type envelope map[string]any // envelopes the JSON
+type Envelope map[string]any // envelopes the JSON
 
-// writes a struct as json to w
+// WriteJSON writes a struct as json to w
 // error can come only before writing to it
 // so if error comes you can custom write
-func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+func (app *Application) WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.Header) error {
 	js, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -30,9 +30,9 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
-// Read r and get json from request body as struct.
+// ReadJSON Read r and get json from request body as struct.
 // Give pointer to struct(dst cal)
-func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+func (app *Application) ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	// Use http.MaxBytesReader() to limit the size of the request body to 1MB.
 	maxBytes := 1_048_576
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
@@ -115,14 +115,14 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	return nil
 }
 
-func (app *application) Background(fn func()) {
-	app.backgroundWG.Add(1)
+func (app *Application) Background(fn func()) {
+	app.BackgroundWG.Add(1)
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				app.logger.Error("Go routine paniced", slog.Any("Error", err))
+				app.Logger.Error("Go routine paniced", slog.Any("Error", err))
 			}
-			app.backgroundWG.Done()
+			app.BackgroundWG.Done()
 		}()
 		fn()
 	}()
