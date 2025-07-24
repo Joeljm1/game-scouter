@@ -1,4 +1,4 @@
-package auth
+package data
 
 import (
 	"game-scouter-api/internal/validator"
@@ -23,10 +23,8 @@ func ValidateEmail(v *validator.Validator, email string) {
 	v.Assert(emailRegex.MatchString(email), "email", "not in valid format")
 }
 
-// Only validates name and email cause password should be validated first
-// cause setting password hash is expensive.
-// I hope its not a stupid thing to do
 func (user *User) Validate(v *validator.Validator) {
 	ValidateName(v, user.Name)
 	ValidateEmail(v, user.Email)
+	ValidatePlaintext(v, *user.Password.plainText)
 }

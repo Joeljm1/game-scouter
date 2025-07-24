@@ -2,7 +2,9 @@
 // authenticating
 package auth
 
-import "game-scouter-api/internal/application"
+import (
+	"game-scouter-api/internal/application"
+)
 
 type AuthApplication struct {
 	*application.Application

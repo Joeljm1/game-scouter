@@ -1,0 +1,26 @@
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width" />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="referrer" content="origin">
+</head>
+<body>
+	<p>Hi,</p>
+	<p>Thanks for signing up for a Game Scouter account. We're excited to have you on board!</p>
+	<p>For future reference, your user ID number is {{.UserID}}.</p>
+	<p>Please click here <button>PUT /v1/users/activated</button> endpoint with the
+	following JSON body to activate your account:</p>
+	<pre>
+		<code>
+		{"token": "{{.ActivationToken}}"}
+		</code>
+	</pre>
+	<p>Please note that this is a one-time use token and it will expire in 3 days.</p>
+	<p>Thanks,</p>
+	<p>The Game Scouter Team</p>
+</body>
+</html>
+{{end}}
+

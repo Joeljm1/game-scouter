@@ -5,6 +5,7 @@ package application
 
 import (
 	"game-scouter-api/internal/data"
+	"game-scouter-api/internal/mailer"
 	"log/slog"
 	"sync"
 )
@@ -26,6 +27,13 @@ type Config struct {
 		// MaxIdleConns int
 		MaxIdleTIme string
 	}
+	SMTP struct {
+		Host     string
+		Port     int
+		Username string
+		Password string
+		Sender   string
+	}
 }
 
 type Application struct {
@@ -33,4 +41,5 @@ type Application struct {
 	Logger       *slog.Logger
 	Models       data.Models
 	BackgroundWG sync.WaitGroup
+	Mailer       *mailer.Mailer
 }

@@ -7,6 +7,7 @@ import (
 	"game-scouter-api/internal/application"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/jsonlog"
+	"game-scouter-api/internal/mailer"
 	"log/slog"
 	"os"
 	"strings"
@@ -44,6 +45,7 @@ func main() {
 	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.Env, "environment", "development", "development|staging|production")
 
+	//Rate limiter
 	flag.Float64Var(&cfg.Limiter.Rps, "limiter-rps", 2, "Rate limiter for max usage per sec")
 	flag.IntVar(&cfg.Limiter.Burst, "limiter-burst", 4, "Rate limiter for max burst usage ")
 	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", true, "Enable rate limiter")
@@ -58,6 +60,12 @@ func main() {
 		return nil
 	})
 
+	//SMTP
+	flag.StringVar(&cfg.SMTP.Host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.SMTP.Port, "smtp-port", 2525, "SMTP port")
+	flag.StringVar(&cfg.SMTP.Username, "smtp-username", "6aaeac8c642e51", "SMTP username")
+	flag.StringVar(&cfg.SMTP.Password, "smtp-password", "39664138a0eab9", "SMTP password")
+	flag.StringVar(&cfg.SMTP.Sender, "smtp-sender", "joeljosephcl10@gmail.com", "SMTP sender")
 	flag.Parse()
 
 	app := &application.Application{
@@ -69,6 +77,12 @@ func main() {
 		app.Logger.Error("DB pool connection error", "Err", err.Error())
 	}
 	app.Models = data.New(pool)
+	m, err := mailer.New(cfg.SMTP.Host, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.Sender, cfg.SMTP.Port)
+	if err != nil {
+		app.Logger.Error("SMTP Config wrong")
+		os.Exit(1)
+	}
+	app.Mailer = m
 	serverApp := serverApplication{Application: app}
 	err = serverApp.run()
 	if err != nil {

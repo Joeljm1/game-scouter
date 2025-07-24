@@ -12,4 +12,27 @@ confirm:
 ## run/api: run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api
+	go run ./cmd/api 
+
+## db/migrations/new name=$1: create a new database migration
+.PHONY: db/migration/new
+db/migration/new:
+	migrate create -seq -ext=.sql -dir=./migrations ${name}
+
+## db/psql: connect to the database using psql
+.PHONY: db/psql
+db/psql:
+	psql ${SCOUTER_DB_DSN}
+
+## db/migrations/up: apply all up database migrations
+.PHONY: db/migration/up
+db/migration/up: confirm
+	@echo "Running migrations"
+	migrate -path ./migrations/ -database ${SCOUTER_DB_DSN} up 
+
+
+## db/migrations/down : apply all down database migration
+.PHONY: db/migration/down
+db/migration/down: confirm
+	@echo "Running migrations"
+	migrate -path ./migrations/ -database ${SCOUTER_DB_DSN} down

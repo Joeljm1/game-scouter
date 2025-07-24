@@ -39,8 +39,14 @@ func (app *Application) RateLimitExceededResponse(w http.ResponseWriter, r *http
 
 func (app *Application) ValidationErrResponse(w http.ResponseWriter, r *http.Request, errMap map[string]string) {
 	data := Envelope{"Error": errMap}
-	err := app.WriteJSON(w, http.StatusBadRequest, data, nil)
-	if err != nil {
-		app.ServerErrResponse(w, r, err)
-	}
+	// err := app.WriteJSON(w, http.StatusBadRequest, data, nil)
+	// if err != nil {
+	// 	app.ServerErrResponse(w, r, err)
+	// }
+	app.ErrResponse(w, r, http.StatusBadRequest, data)
+}
+
+func (app *Application) ConflictErrResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "unable to update the record due to an edit conflict, please try again"
+	app.ErrResponse(w, r, http.StatusConflict, msg)
 }
