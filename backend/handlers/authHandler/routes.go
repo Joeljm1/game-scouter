@@ -1,20 +1,37 @@
 package auth
 
+//TODO: CSRF protection
+
 import (
+	"bytes"
 	"crypto/sha256"
+	"embed"
 	"errors"
 	"game-scouter-api/internal/application"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/validator"
+	"html/template"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 )
 
+//go:embed templates
+var FS embed.FS
+
+var welcomeTmpl *template.Template
+
+func init() {
+	tmpl, err := template.New("welcome").ParseFS(FS, "templates/Welcome.tmpl")
+	if err != nil {
+		panic(err)
+	}
+	welcomeTmpl = tmpl
+}
+
 func (app *AuthApplication) Routes() http.Handler {
 	r := chi.NewRouter()
-	r.HandleFunc("/register", app.RegisterUserHandler)
+	r.Post("/register", app.RegisterUserHandler)
 	return r
 }
 
@@ -61,8 +78,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		}
 		return
 	}
-	tok := data.GenerateToken(user.ID, time.Hour*48, data.ScopeActivation)
-	err = app.Models.TokenModel.Insert(tok)
+	tok, err := app.Models.TokenModel.GenerateAndInsertToken(user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -124,12 +140,31 @@ func (app *AuthApplication) ActivateUser(w http.ResponseWriter, r *http.Request)
 		}
 		return
 	}
-
-	envelope := application.Envelope{
-		"Successful": "Account activated",
-	}
-	err = app.WriteJSON(w, http.StatusOK, envelope, nil) //TODO: ceck if status code that is sent is the valid one
+	err = app.Models.TokenModel.DeleteAllToken(user.ID, data.ScopeActivation)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
+		return
 	}
+	authToken, err := app.Models.TokenModel.GenerateAndInsertToken(user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration, data.ScopeAuthentication)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	c := NewAuthTokenCookie(user.ID, *authToken, app.Cfg.TokenLife.AuthToken.LifeDuration)
+	http.SetCookie(w, c)
+	buff := new(bytes.Buffer)
+	tmplData := struct {
+		Name string
+	}{
+		Name: user.Name,
+	}
+	err = welcomeTmpl.ExecuteTemplate(buff, "welcome", tmplData)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	//TODO: restructuring of this code as the order does not seem to be valid
+	// ie if token created but template execution error then token is simply created
+	w.WriteHeader(http.StatusOK)
+	w.Write(buff.Bytes())
 }

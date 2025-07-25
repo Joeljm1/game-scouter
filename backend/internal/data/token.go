@@ -44,7 +44,9 @@ func GenerateToken(userID int64, ttl time.Duration, scope string) *Token {
 }
 
 func (m *TokenModel) Insert(tok *Token) error {
-	query := `INSERT INTO token (user_id,hash,expiry,scope) VALUES($1,$2,$3,$4)`
+	query := `INSERT INTO token 
+	(user_id,hash,expiry,scope) 
+	VALUES($1,$2,$3,$4)`
 	ars := []any{tok.UserID, tok.Hash, tok.Expiry, tok.Scope}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -55,7 +57,22 @@ func (m *TokenModel) Insert(tok *Token) error {
 	return nil
 }
 
+// Generated token and inserts it to db
+func (m *TokenModel) GenerateAndInsertToken(userID int64, ttl time.Duration, scope string) (*Token, error) {
+	tok := GenerateToken(userID, ttl, scope)
+	err := m.Insert(tok)
+	return tok, err
+}
+
 func ValidateToken(v *validator.Validator, token string) {
 	v.Assert(token != "", "token", "should not be empty")
 	v.Assert(len(token) == 26, "token", "not valid")
+}
+
+func (m *TokenModel) DeleteAllToken(userID int64, scope string) error {
+	query := `DELETE FROM token WHERE user_id=$1 AND scope=$2`
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	_, err := m.Pool.Exec(ctx, query, userID, scope)
+	return err
 }

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"game-scouter-api/internal/application"
 	customrespwriter "game-scouter-api/internal/customRespWriter"
 
 	"golang.org/x/time/rate"
@@ -93,10 +94,29 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Orgin", orgin)
 				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" { // if preflight request
 					w.Header().Set("Access-Control-Allow-Methods", "OPTION, PUT, PATCH, DELETE")
-					w.Header().Set("Access-Control-Allow-Headers", "Content-Type") // add more if needed
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Hi-From-Frontend") // add more if needed
 					w.WriteHeader(http.StatusOK)
 					return
 				}
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// NOTE: Used to prevent csrf attack for endpoints that cause changes
+func (app *serverApplication) CheckCustomHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch:
+			hi := r.Header.Get("Hi-From-Frontend")
+			if hi != "true" {
+				msg := application.Envelope{"Error": "Forbidden"}
+				err := app.WriteJSON(w, http.StatusForbidden, msg, nil)
+				if err != nil {
+					app.ServerErrResponse(w, r, err)
+				}
+				return
 			}
 		}
 		next.ServeHTTP(w, r)

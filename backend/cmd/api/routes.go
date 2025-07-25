@@ -18,6 +18,7 @@ func (app *serverApplication) routes() http.Handler {
 	// middlewares
 	mux.Use(app.RecoverPanic)
 	mux.Use(app.Metrics)
+	mux.Use(app.CheckCustomHeader)
 	mux.Get("/v1/health", app.healthCheck)
 
 	// mount other handlers here

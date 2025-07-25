@@ -66,11 +66,19 @@ func main() {
 	flag.StringVar(&cfg.SMTP.Username, "smtp-username", "6aaeac8c642e51", "SMTP username")
 	flag.StringVar(&cfg.SMTP.Password, "smtp-password", "39664138a0eab9", "SMTP password")
 	flag.StringVar(&cfg.SMTP.Sender, "smtp-sender", "joeljosephcl10@gmail.com", "SMTP sender")
+
+	flag.StringVar(&cfg.TokenLife.AuthToken.LifeStr, "authTokenLife", "24h", "How long a session token is alive. Units are all valid units in time.ParseDuration")
+	flag.StringVar(&cfg.TokenLife.ActivateToken.LifeStr, "activateTokenLife", "48h", "How long a activation token is alive. Units are all valid units in time.ParseDuration")
+
 	flag.Parse()
 
 	app := &application.Application{
 		Cfg:    cfg,
 		Logger: jsonlog.New(os.Stdout),
+	}
+	err := cfg.Configure()
+	if err != nil {
+		app.Logger.Error("Configuring Config failed", "Err", err.Error())
 	}
 	pool, err := openDB(app.Cfg)
 	if err != nil {
