@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"time"
 
@@ -80,14 +81,18 @@ func (m *UserModel) Update(user *User) error {
 	return nil
 }
 
-func (m *UserModel) GetUserfromToken(token []byte, scope string) (*User, error) {
+// NOTE: Token should not be hashed one just pllaintext
+// TODO: May be if need chache the tokens to temporarily
+func (m *UserModel) GetUserfromToken(token string, scope string) (*User, error) {
+	hashArr := sha256.Sum256([]byte(token))
+	hash := hashArr[:]
 	query := `SELECT id,created_at,name,email,password_hash,activated,version
 			FROM users JOIN token ON token.user_id=users.id WHERE token.hash=$1
 			AND token.scope=$2 AND token.expiry>$3`
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	var user User
-	err := m.Pool.QueryRow(ctx, query, token, scope, time.Now()).Scan(
+	err := m.Pool.QueryRow(ctx, query, hash, scope, time.Now()).Scan(
 		&user.ID,
 		&user.CreatedAt,
 		&user.Name,

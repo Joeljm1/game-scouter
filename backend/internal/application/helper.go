@@ -1,9 +1,11 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"game-scouter-api/internal/data"
 	"io"
 	"log/slog"
 	"net/http"
@@ -131,4 +133,25 @@ func (app *Application) Background(fn func()) {
 func GetFromQuery(r *http.Request, key string) string {
 	val := r.URL.Query().Get(key)
 	return val
+}
+
+type ContextKey string
+
+var userKey = ContextKey("user")
+
+func (app *Application) SetUser(r *http.Request, user *data.User) *http.Request {
+	if user == nil {
+		panic("user is nill")
+	}
+	ctx := context.WithValue(r.Context(), userKey, user)
+	req := r.WithContext(ctx)
+	return req
+}
+
+func (app *Application) GetUser(r *http.Request) *data.User {
+	user, ok := r.Context().Value(userKey).(*data.User)
+	if !ok || user == nil {
+		panic("User not found")
+	}
+	return user
 }

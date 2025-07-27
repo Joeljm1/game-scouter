@@ -70,6 +70,8 @@ func main() {
 	flag.StringVar(&cfg.TokenLife.AuthToken.LifeStr, "authTokenLife", "24h", "How long a session token is alive. Units are all valid units in time.ParseDuration")
 	flag.StringVar(&cfg.TokenLife.ActivateToken.LifeStr, "activateTokenLife", "48h", "How long a activation token is alive. Units are all valid units in time.ParseDuration")
 
+	flag.StringVar(&cfg.SessionCookie, "sessionCookie", "SessionCookie", "Name of the session cookie")
+
 	flag.Parse()
 
 	app := &application.Application{

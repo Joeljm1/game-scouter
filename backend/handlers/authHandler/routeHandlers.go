@@ -11,7 +11,6 @@ package auth
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"game-scouter-api/internal/application"
 	"game-scouter-api/internal/data"
@@ -103,9 +102,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		app.ValidationErrResponse(w, r, v.Errors)
 		return
 	}
-	hashArr := sha256.Sum256([]byte(token))
-	hash := hashArr[:]
-	user, err := app.Models.UserModel.GetUserfromToken(hash, data.ScopeActivation)
+	user, err := app.Models.UserModel.GetUserfromToken(token, data.ScopeActivation)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRows):

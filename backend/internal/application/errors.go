@@ -55,3 +55,13 @@ func (app *Application) LoginErr(w http.ResponseWriter, r *http.Request) {
 	msg := "invalid credentials"
 	app.ErrResponse(w, r, http.StatusUnauthorized, msg)
 }
+
+func (app *Application) NotAuthenticatedResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "user not authenticated"
+	app.ErrResponse(w, r, http.StatusForbidden, msg)
+}
+
+func (app *Application) NotActivatedResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "user not activated"
+	app.ErrResponse(w, r, http.StatusForbidden, msg)
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +12,8 @@ import (
 
 	"game-scouter-api/internal/application"
 	customrespwriter "game-scouter-api/internal/customRespWriter"
+	"game-scouter-api/internal/data"
+	"game-scouter-api/internal/validator"
 
 	"golang.org/x/time/rate"
 )
@@ -123,4 +126,60 @@ func (app *serverApplication) CheckCustomHeader(next http.Handler) http.Handler 
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Cookie")
+		cookie, err := r.Cookie(app.Cfg.SessionCookie)
+		if err != nil {
+			req := app.SetUser(r, data.AnonymousUser())
+			next.ServeHTTP(w, req)
+			return
+		}
+		token := cookie.Value
+		v := validator.NewValidator()
+		data.ValidateToken(v, token)
+		if !v.Valid() {
+			app.ValidationErrResponse(w, r, v.Errors)
+			return
+		}
+		user, err := app.Models.UserModel.GetUserfromToken(token, data.ScopeAuthentication)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrNoRows):
+				v.AddError("token", "Invalid authentication token found")
+				app.ValidationErrResponse(w, r, v.Errors)
+			default:
+				app.ServerErrResponse(w, r, err)
+			}
+			return
+		}
+		req := app.SetUser(r, user)
+		next.ServeHTTP(w, req)
+	})
+}
+
+func (app *serverApplication) reqAuthUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.GetUser(r)
+		if user.IsAnonymous() {
+			app.NotAuthenticatedResponse(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Will check if user is authenticated to. No need to double check it
+func (app *serverApplication) reqActivatedUser(next http.Handler) http.Handler {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.GetUser(r)
+		if !user.Activated {
+			app.NotActivatedResponse(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+	return app.reqAuthUser(fn)
 }

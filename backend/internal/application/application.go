@@ -24,7 +24,9 @@ type Config struct {
 			LifeDuration time.Duration
 		}
 	}
-	Limiter struct {
+	//Name of the cookie
+	SessionCookie string
+	Limiter       struct {
 		Rps     float64
 		Burst   int
 		Enabled bool

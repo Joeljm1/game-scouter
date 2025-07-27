@@ -13,9 +13,9 @@ type AuthApplication struct {
 	*application.Application
 }
 
-func NewAuthTokenCookie(userID int64, token *data.Token, ttl time.Duration) *http.Cookie {
+func NewAuthTokenCookie(userID int64, token *data.Token, ttl time.Duration, name string) *http.Cookie {
 	cookie := http.Cookie{
-		Name:     "SessionCookie",
+		Name:     name,
 		Value:    token.Plaintext,
 		Path:     "/",
 		MaxAge:   int(ttl.Seconds()),
@@ -32,7 +32,7 @@ func (app *AuthApplication) Login(w http.ResponseWriter, userID int64, ttl time.
 	if err != nil {
 		return err
 	}
-	cookie := NewAuthTokenCookie(userID, token, ttl)
+	cookie := NewAuthTokenCookie(userID, token, ttl, app.Cfg.SessionCookie)
 	http.SetCookie(w, cookie)
 	return nil
 }

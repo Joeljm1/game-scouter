@@ -30,7 +30,7 @@ func TestIsAnonymous(t *testing.T) {
 
 func TestValidateName(t *testing.T) {
 	longName := make([]byte, 500)
-	rand.Read(longName)
+	_, _ = rand.Read(longName)
 	tables := []struct {
 		name     string
 		expected bool
@@ -63,7 +63,7 @@ func TestValidateName(t *testing.T) {
 
 func TestValidPassword(t *testing.T) {
 	longPass := make([]byte, 72)
-	rand.Read(longPass)
+	_, _ = rand.Read(longPass)
 	tables := []struct {
 		password string
 		expected bool
