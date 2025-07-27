@@ -13,7 +13,7 @@ type AuthApplication struct {
 	*application.Application
 }
 
-func NewAuthTokenCookie(userID int64, token data.Token, ttl time.Duration) *http.Cookie {
+func NewAuthTokenCookie(userID int64, token *data.Token, ttl time.Duration) *http.Cookie {
 	cookie := http.Cookie{
 		Name:     "SessionCookie",
 		Value:    token.Plaintext,
@@ -24,4 +24,15 @@ func NewAuthTokenCookie(userID int64, token data.Token, ttl time.Duration) *http
 		SameSite: http.SameSiteNoneMode,
 	}
 	return &cookie
+}
+
+// Generates token for the user, stored it in db and adds a cookie to responseWriter
+func (app *AuthApplication) Login(w http.ResponseWriter, userID int64, ttl time.Duration) error {
+	token, err := app.Models.TokenModel.GenerateAndInsertToken(userID, ttl, data.ScopeAuthentication)
+	if err != nil {
+		return err
+	}
+	cookie := NewAuthTokenCookie(userID, token, ttl)
+	http.SetCookie(w, cookie)
+	return nil
 }

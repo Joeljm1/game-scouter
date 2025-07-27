@@ -106,3 +106,29 @@ func (m *UserModel) GetUserfromToken(token []byte, scope string) (*User, error) 
 	}
 	return &user, nil
 }
+func (m *UserModel) GetUserFromEmail(email string) (*User, error) {
+
+	query := `SELECT id,created_at,name,email,password_hash,activated,version
+			FROM users where email=$1`
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	var user User
+	err := m.Pool.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.Hash,
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrNoRows
+		default:
+			return nil, err
+		}
+	}
+	return &user, nil
+}

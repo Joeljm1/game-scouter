@@ -5,10 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base32"
+	"errors"
 	"game-scouter-api/internal/validator"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -75,4 +77,17 @@ func (m *TokenModel) DeleteAllToken(userID int64, scope string) error {
 	defer cancel()
 	_, err := m.Pool.Exec(ctx, query, userID, scope)
 	return err
+}
+
+func MatchPassword(plainText string, hash []byte) (bool, error) {
+	err := bcrypt.CompareHashAndPassword(hash, []byte(plainText))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			return false, nil
+		default:
+			return false, err
+		}
+	}
+	return true, nil
 }

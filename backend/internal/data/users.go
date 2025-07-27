@@ -21,6 +21,16 @@ type User struct {
 	Version   int       `json:"-"`
 }
 
+var anonymousUser User
+
+func AnonymousUser() *User {
+	return &anonymousUser
+}
+
+func (user *User) IsAnonymous() bool {
+	return user == &anonymousUser
+}
+
 // Should be called only after plaintext is validated
 func (psswd *Password) SetHash(plaintext string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintext), 12)

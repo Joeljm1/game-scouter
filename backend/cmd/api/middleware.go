@@ -86,16 +86,18 @@ func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 
 func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Vary", "Orgin")
+		w.Header().Add("Vary", "Origin")
 		w.Header().Add("Vary", "Access-Control-Request-Method")
-		orgin := r.Header.Get("Orgin")
-		if orgin != "" && len(app.Cfg.Cors.TrustedOrgins) != 0 {
-			if slices.Contains(app.Cfg.Cors.TrustedOrgins, orgin) {
-				w.Header().Set("Access-Control-Allow-Orgin", orgin)
+		w.Header().Add("Vary", "Access-Control-Request-Headers")
+		origin := r.Header.Get("Origin")
+		if origin != "" && len(app.Cfg.Cors.TrustedOrgins) != 0 {
+			if slices.Contains(app.Cfg.Cors.TrustedOrgins, origin) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" { // if preflight request
-					w.Header().Set("Access-Control-Allow-Methods", "OPTION, PUT, PATCH, DELETE")
+					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Hi-From-Frontend") // add more if needed
-					w.WriteHeader(http.StatusOK)
+					w.WriteHeader(http.StatusNoContent)
 					return
 				}
 			}
