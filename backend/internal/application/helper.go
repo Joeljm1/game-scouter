@@ -130,6 +130,7 @@ func (app *Application) Background(fn func()) {
 	}()
 }
 
+// empty string if key does not exist
 func GetFromQuery(r *http.Request, key string) string {
 	val := r.URL.Query().Get(key)
 	return val

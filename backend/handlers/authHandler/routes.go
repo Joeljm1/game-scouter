@@ -24,7 +24,7 @@ func init() {
 func (app *AuthApplication) Routes() http.Handler {
 	r := chi.NewRouter()
 	r.Post("/register", app.RegisterUserHandler)
-	r.Post("/register", app.LoginHandler)
+	r.Post("/login", app.LoginHandler)
 	r.Get("/activate", app.ActivateUserHandler)
 	return r
 }

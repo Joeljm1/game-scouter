@@ -11,11 +11,11 @@ func TestIsAnonymous(t *testing.T) {
 		user     *User
 		expected bool
 	}{
-		{
+		{ //1
 			user:     &User{},
 			expected: false,
 		},
-		{
+		{ //2
 			user:     AnonymousUser(),
 			expected: true,
 		},
@@ -35,20 +35,32 @@ func TestValidateName(t *testing.T) {
 		name     string
 		expected bool
 	}{
-		{
+		{ //1
 			name:     "Joel",
 			expected: true,
 		},
-		{
+		{ //2
 			name:     "Jazael",
 			expected: true,
 		},
-		{
+		{ //3
 			name:     "",
 			expected: false,
 		},
-		{
+		{ //4
 			name:     string(longName),
+			expected: false,
+		},
+		{ //5
+			name:     "     ",
+			expected: false,
+		},
+		{ //6
+			name:     "\n\t\r",
+			expected: false,
+		},
+		{ //7
+			name:     "\t\n\v\f\r ",
 			expected: false,
 		},
 	}
@@ -68,28 +80,40 @@ func TestValidPassword(t *testing.T) {
 		password string
 		expected bool
 	}{
-		{
+		{ //1
 			password: "123456789",
 			expected: true,
 		},
-		{
+		{ //2
 			password: "Hello123",
 			expected: true,
 		},
-		{
+		{ //3
 			password: "",
 			expected: false,
 		},
-		{
+		{ //4
 			password: string(longPass),
 			expected: false,
 		},
-		{
+		{ //5
 			password: "23e",
 			expected: false,
 		},
-		{
+		{ //6
 			password: "abc",
+			expected: false,
+		},
+		{ //7
+			password: "     ",
+			expected: false,
+		},
+		{ //8
+			password: "\n\t\r",
+			expected: false,
+		},
+		{ //9
+			password: "\t\n\v\f\r ",
 			expected: false,
 		},
 	}

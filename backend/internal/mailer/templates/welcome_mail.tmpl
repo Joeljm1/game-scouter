@@ -10,7 +10,7 @@
 	<p>Hi,</p>
 	<p>Thanks for signing up for a Game Scouter account. We're excited to have you on board!</p>
 	<p>For future reference, your user ID number is {{.UserID}}.</p>
-	<p>Please click here <button>PUT /v1/users/activated</button> endpoint with the
+	<p>Please click here <a href="http://localhost:4000/auth/activate?token={{.ActivationToken}}"><button>Click here</button></a> endpoint with the
 	following JSON body to activate your account:</p>
 	<pre>
 		<code>

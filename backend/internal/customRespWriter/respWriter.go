@@ -21,8 +21,8 @@ func New(w http.ResponseWriter) *MetricsResponseWriter {
 	return &MetricsResponseWriter{
 		ResponseWriter: w,
 		Status:         http.StatusOK,
-		StartTime:      time.Now(),
-		HeaderWritten:  true,
+		StartTime:      time.Now().UTC(),
+		HeaderWritten:  false,
 	}
 }
 

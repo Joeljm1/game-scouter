@@ -7,14 +7,14 @@ import (
 )
 
 func ValidateName(v *validator.Validator, name string) {
-	v.Assert(name != "", "nameEmpty", "name should not be empty")
+	v.Assert(strings.TrimSpace(name) != "", "nameEmpty", "name should not be empty")
 	v.Assert(len(name) < 500, "nameLong", "name should never be more than 500 bytes")
 }
 
 var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 func ValidatePlaintext(v *validator.Validator, psswd string) {
-	v.Assert(psswd != "", "passwordEmpty", "should not be empty")
+	v.Assert(strings.TrimSpace(psswd) != "", "passwordEmpty", "should not be empty")
 	v.Assert(len([]byte(psswd)) < 72, "passwordLong", "length should be less than 72 bytes")
 	v.Assert(len([]byte(psswd)) >= 8, "passwordShort", "length should be more than 7 bytes")
 }

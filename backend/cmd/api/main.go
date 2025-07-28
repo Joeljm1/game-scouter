@@ -38,8 +38,6 @@ func openDB(cfg application.Config) (*pgxpool.Pool, error) {
 
 func main() {
 	// in dev recieved from the make file
-	env := os.Getenv("SCOUTER_DB_DSN")
-	fmt.Println(env)
 	cfg := application.Config{}
 
 	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
@@ -51,7 +49,7 @@ func main() {
 	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", true, "Enable rate limiter")
 
 	// db
-	flag.StringVar(&cfg.DB.DSN, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.DB.DSN, "db-dsn", os.Getenv("SCOUTER_DB_DSN"), "PostgreSQL DSN")
 	flag.IntVar(&cfg.DB.MaxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	// flag.IntVar(&cfg.DB.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.DB.MaxIdleTIme, "db-max-idel-time", "15m", "PostgreSQL max connection idle time input in form 10s,10m etc")
@@ -75,14 +73,15 @@ func main() {
 	flag.Parse()
 
 	app := &application.Application{
-		Cfg:    cfg,
+		Cfg:    &cfg,
 		Logger: jsonlog.New(os.Stdout),
 	}
-	err := cfg.Configure()
+	err := app.Cfg.Configure()
+	fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration)
 	if err != nil {
 		app.Logger.Error("Configuring Config failed", "Err", err.Error())
 	}
-	pool, err := openDB(app.Cfg)
+	pool, err := openDB(*app.Cfg)
 	if err != nil {
 		app.Logger.Error("DB pool connection error", "Err", err.Error())
 	}

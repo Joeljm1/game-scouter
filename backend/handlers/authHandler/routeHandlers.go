@@ -12,6 +12,7 @@ package auth
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"game-scouter-api/internal/application"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/validator"
@@ -50,6 +51,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		app.ServerErrResponse(w, r, err)
 		return
 	}
+	user.Password = psswd
 	err = app.Models.UserModel.Insert(&user)
 	if err != nil {
 		switch {
@@ -62,26 +64,30 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	tok, err := app.Models.TokenModel.GenerateAndInsertToken(user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
+	fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
 	tmplData := struct {
-		userID          int64
+		UserID          int64
 		ActivationToken string
 	}{
-		userID:          user.ID,
+		UserID:          user.ID,
 		ActivationToken: tok.Plaintext,
 	}
 	app.Background(func() {
-		i := 0
-		for i < 3 {
+		for i := range 3 {
 			err := app.Mailer.Send(user.Email, tmplData)
+			app.Logger.Info("Mailer.Send", "err", err)
 			if err == nil {
+				app.Logger.Info("Successfully sent email to", "email", user.Email)
 				break
 			}
+			if i == 2 {
+				app.Logger.Info("could not send email to", "email", user.Email)
+			}
 		}
-
 	})
 	envelope := application.Envelope{
 		"Successful": "Account created, now please verify mail",

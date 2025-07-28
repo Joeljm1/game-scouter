@@ -34,8 +34,8 @@ type TokenModel struct {
 func GenerateToken(userID int64, ttl time.Duration, scope string) *Token {
 	tok := &Token{
 		UserID: userID,
-		Scope:  ScopeActivation,
-		Expiry: time.Now().Add(ttl),
+		Scope:  scope,
+		Expiry: time.Now().UTC().Add(ttl),
 	}
 	randomByte := make([]byte, 16)
 	_, _ = rand.Read(randomByte) // comments in source code says it never returns error
@@ -68,7 +68,7 @@ func (m *TokenModel) GenerateAndInsertToken(userID int64, ttl time.Duration, sco
 
 func ValidateToken(v *validator.Validator, token string) {
 	v.Assert(token != "", "token", "should not be empty")
-	v.Assert(len(token) == 26, "token", "not valid")
+	v.Assert(len(token) == 26, "tokenVal", "not valid")
 }
 
 func (m *TokenModel) DeleteAllToken(userID int64, scope string) error {

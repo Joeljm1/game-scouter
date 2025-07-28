@@ -50,7 +50,7 @@ type Config struct {
 }
 
 type Application struct {
-	Cfg          Config
+	Cfg          *Config
 	Logger       *slog.Logger
 	Models       data.Models
 	BackgroundWG sync.WaitGroup

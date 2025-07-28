@@ -89,10 +89,11 @@ func (m *UserModel) GetUserfromToken(token string, scope string) (*User, error) 
 	query := `SELECT id,created_at,name,email,password_hash,activated,version
 			FROM users JOIN token ON token.user_id=users.id WHERE token.hash=$1
 			AND token.scope=$2 AND token.expiry>$3`
+	timeNow := time.Now().UTC().Format("2006-01-02 15:04:05+00")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	var user User
-	err := m.Pool.QueryRow(ctx, query, hash, scope, time.Now()).Scan(
+	err := m.Pool.QueryRow(ctx, query, hash, scope, timeNow).Scan(
 		&user.ID,
 		&user.CreatedAt,
 		&user.Name,
