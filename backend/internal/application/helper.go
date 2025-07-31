@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Envelope map[string]any // envelopes the JSON
@@ -140,19 +141,56 @@ type ContextKey string
 
 var userKey = ContextKey("user")
 
-func (app *Application) SetUser(r *http.Request, user *data.User) *http.Request {
-	if user == nil {
-		panic("user is nill")
+type UserVal struct {
+	User *data.User
+	Tok  string
+}
+
+func (app *Application) SetUser(r *http.Request, user *data.User, tok string) *http.Request {
+	if user == nil || tok == "" {
+		panic("user is nill or token is empty")
 	}
-	ctx := context.WithValue(r.Context(), userKey, user)
+	setVal := UserVal{
+		User: user,
+		Tok:  tok,
+	}
+	ctx := context.WithValue(r.Context(), userKey, setVal)
 	req := r.WithContext(ctx)
 	return req
 }
 
 func (app *Application) GetUser(r *http.Request) *data.User {
-	user, ok := r.Context().Value(userKey).(*data.User)
-	if !ok || user == nil {
+	userVal, ok := r.Context().Value(userKey).(UserVal)
+	if !ok || userVal.User == nil {
 		panic("User not found")
 	}
-	return user
+	return userVal.User
+}
+
+func (app *Application) GetTok(r *http.Request) string {
+	userVal, ok := r.Context().Value(userKey).(UserVal)
+	if !ok || userVal.Tok == "" {
+		panic("Token not found")
+	}
+	return userVal.Tok
+}
+func (app *Application) NewTokenCookie(token *data.Token, ttl time.Duration, name string) *http.Cookie {
+	cookie := http.Cookie{
+		Name:     name,
+		Value:    token.Plaintext,
+		Path:     "/",
+		MaxAge:   int(ttl.Seconds()),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+	}
+	return &cookie
+}
+func (app *Application) AnonUserCookie() (*http.Cookie, *data.Token, error) {
+	tok, err := app.Models.TokenModel.GenerateAndInsertToken(0, app.Cfg.TokenLife.AuthToken.LifeDuration, data.ScopeAuthentication)
+	if err != nil {
+		return nil, nil, err
+	}
+	cookie := app.NewTokenCookie(tok, app.Cfg.TokenLife.AuthToken.LifeDuration, app.Cfg.SessionCookie)
+	return cookie, tok, nil
 }

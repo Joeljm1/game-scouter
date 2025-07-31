@@ -133,7 +133,14 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 		w.Header().Add("Vary", "Cookie")
 		cookie, err := r.Cookie(app.Cfg.SessionCookie)
 		if err != nil {
-			req := app.SetUser(r, data.AnonymousUser())
+			//TODO: cookie not pressent so make a session
+			cookie, tok, err := app.AnonUserCookie()
+			if err != nil {
+				app.ServerErrResponse(w, r, err)
+				return
+			}
+			http.SetCookie(w, cookie)
+			req := app.SetUser(r, data.AnonymousUser(), tok.Plaintext)
 			next.ServeHTTP(w, req)
 			return
 		}
@@ -155,7 +162,10 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 			}
 			return
 		}
-		req := app.SetUser(r, user)
+		if user.ID == 0 {
+			user = data.AnonymousUser()
+		}
+		req := app.SetUser(r, user, token)
 		next.ServeHTTP(w, req)
 	})
 }

@@ -7,3 +7,5 @@ CREATE TABLE IF NOT EXISTS users (
     activated bool NOT NULL,
     version integer NOT NULL DEFAULT 1
 );
+
+INSERT INTO users(id,name,email,password_hash,activated) VALUES (0,'Anon','','\xDEADBEEF',true)

@@ -17,10 +17,14 @@ func TestSetAndGetUser(t *testing.T) {
 			t.Fatalf("%v) Err making req. Err: %v", i, err.Error())
 		}
 
-		newReq := app.SetUser(r, user)
+		newReq := app.SetUser(r, user, "tokentest")
 		userFromCtx := app.GetUser(newReq)
 		if userFromCtx != user {
 			t.Errorf("%v) Err getting same user.", i)
+		}
+		tokenFromtx := app.GetTok(newReq)
+		if tokenFromtx != "tokentest" {
+			t.Errorf("%v) Err getting same token.", i)
 		}
 	}
 }

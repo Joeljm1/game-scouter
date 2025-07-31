@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"game-scouter-api/internal/application"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/jsonlog"
@@ -69,7 +68,6 @@ func main() {
 	flag.StringVar(&cfg.TokenLife.ActivateToken.LifeStr, "activateTokenLife", "48h", "How long a activation token is alive. Units are all valid units in time.ParseDuration")
 
 	flag.StringVar(&cfg.SessionCookie, "session-cookie", "SessionCookie", "Name of the session cookie")
-	flag.StringVar(&cfg.Key.Base64URLEncodeStr, "secret-key", os.Getenv("SECRET_KEY"), "secret key for signing")
 	flag.StringVar(&cfg.Oauth.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
 	flag.StringVar(&cfg.Oauth.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
 
@@ -80,13 +78,18 @@ func main() {
 		Logger: jsonlog.New(os.Stdout),
 	}
 	err := app.Cfg.Configure()
-	fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration)
 	if err != nil {
 		app.Logger.Error("Configuring Config failed", "Err", err.Error())
+		os.Exit(1)
 	}
 	pool, err := openDB(*app.Cfg)
 	if err != nil {
 		app.Logger.Error("DB pool connection error", "Err", err.Error())
+		os.Exit(1)
+	}
+	if err != nil {
+		app.Logger.Error("redis pool connection error", "Err", err.Error())
+		os.Exit(1)
 	}
 	app.Models = data.New(pool)
 	m, err := mailer.New(cfg.SMTP.Host, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.Sender, cfg.SMTP.Port)

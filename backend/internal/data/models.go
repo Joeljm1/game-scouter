@@ -2,7 +2,9 @@
 // and other data structures needed
 package data
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"github.com/jackc/pgx/v5/pgxpool"
+)
 
 type Models struct {
 	UserModel  UserModel
