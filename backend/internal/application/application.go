@@ -4,6 +4,7 @@
 package application
 
 import (
+	"encoding/base64"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/mailer"
 	"log/slog"
@@ -47,6 +48,16 @@ type Config struct {
 		Password string
 		Sender   string
 	}
+	Key struct {
+		Base64URLEncodeStr string
+		SecretKey          []byte
+	}
+	Oauth struct {
+		Google struct {
+			ClientID     string
+			ClientSecret string
+		}
+	}
 }
 
 type Application struct {
@@ -74,12 +85,28 @@ func (cfg *Config) ConfigureActivateTokenLife() error {
 	cfg.TokenLife.ActivateToken.LifeDuration = t
 	return nil
 }
+
+func (cfg *Config) ConfigureSecretKey() error {
+	if cfg.Key.Base64URLEncodeStr == "" {
+		panic("secretKey not set")
+	}
+	secret, err := base64.URLEncoding.DecodeString(cfg.Key.Base64URLEncodeStr)
+	if err != nil {
+		return err
+	}
+	cfg.Key.SecretKey = secret
+	return nil
+}
 func (cfg *Config) Configure() error {
 	err := cfg.ConfigureAuthTokenLife()
 	if err != nil {
 		return err
 	}
 	err = cfg.ConfigureActivateTokenLife()
+	if err != nil {
+		return err
+	}
+	err = cfg.ConfigureSecretKey()
 	if err != nil {
 		return err
 	}

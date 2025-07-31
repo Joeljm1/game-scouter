@@ -68,7 +68,10 @@ func main() {
 	flag.StringVar(&cfg.TokenLife.AuthToken.LifeStr, "authTokenLife", "24h", "How long a session token is alive. Units are all valid units in time.ParseDuration")
 	flag.StringVar(&cfg.TokenLife.ActivateToken.LifeStr, "activateTokenLife", "48h", "How long a activation token is alive. Units are all valid units in time.ParseDuration")
 
-	flag.StringVar(&cfg.SessionCookie, "sessionCookie", "SessionCookie", "Name of the session cookie")
+	flag.StringVar(&cfg.SessionCookie, "session-cookie", "SessionCookie", "Name of the session cookie")
+	flag.StringVar(&cfg.Key.Base64URLEncodeStr, "secret-key", os.Getenv("SECRET_KEY"), "secret key for signing")
+	flag.StringVar(&cfg.Oauth.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
+	flag.StringVar(&cfg.Oauth.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
 
 	flag.Parse()
 

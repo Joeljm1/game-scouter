@@ -38,7 +38,7 @@ func GenerateToken(userID int64, ttl time.Duration, scope string) *Token {
 		Expiry: time.Now().UTC().Add(ttl),
 	}
 	randomByte := make([]byte, 16)
-	_, _ = rand.Read(randomByte) // comments in source code says it never returns error
+	_, _ = rand.Read(randomByte) // comments in source code says it never returns error but can panic
 	tok.Plaintext = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomByte)
 	hash := sha256.Sum256([]byte(tok.Plaintext))
 	tok.Hash = hash[:]
