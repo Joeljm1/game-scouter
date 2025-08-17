@@ -1,7 +1,11 @@
 package application
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base32"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -193,4 +197,45 @@ func (app *Application) AnonUserCookie() (*http.Cookie, *data.Token, error) {
 	}
 	cookie := app.NewTokenCookie(tok, app.Cfg.TokenLife.AuthToken.LifeDuration, app.Cfg.SessionCookie)
 	return cookie, tok, nil
+}
+
+// go data structure to []bytes
+func (app *Application) SerializeGoB(data any) ([]byte, error) {
+	buff := new(bytes.Buffer)
+	err := gob.NewEncoder(buff).Encode(data)
+	if err != nil {
+		return nil, err
+	}
+	return buff.Bytes(), nil
+}
+
+// []bytes to go data structure
+// dest should be pointer to the dat structure
+func (app *Application) DeserializeGoB(src []byte, dest any) error {
+	reader := bytes.NewReader(src)
+	err := gob.NewDecoder(reader).Decode(dest)
+	return err
+}
+
+// bits expects the no of bits of entropy
+func (app *Application) CryptoRandomStr(bits int) string {
+	buff := make([]byte, bits)
+	_, _ = rand.Read(buff)
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buff)
+}
+
+// Used to get dataMap from []bytes in tok.Data
+// Asking for bytes and not taking token for fn and doing
+// as i can resuse a token from calling function for stuff like updating
+// to reduce db calls
+func (app *Application) GetSessDataMap(SessData []byte) (map[string]any, error) {
+	if len(SessData) == 0 { //nil check
+		return map[string]any{}, nil
+	}
+	var tokData map[string]any
+	err := app.DeserializeGoB(SessData, &tokData)
+	if err != nil {
+		return nil, err
+	}
+	return tokData, nil
 }

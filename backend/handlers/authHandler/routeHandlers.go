@@ -17,6 +17,8 @@ import (
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/validator"
 	"net/http"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -211,4 +213,29 @@ func (app *AuthApplication) LoginHandler(w http.ResponseWriter, r *http.Request)
 	//TODO: when frontend created redirect to home page
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("This is homepage"))
+}
+
+// redirect in url is hardcoded
+func (app *AuthApplication) getGoogleOidcUrlHandler(w http.ResponseWriter, r *http.Request) {
+	tok := app.GetTok(r)
+	state := app.CryptoRandomStr(16)
+	nonce := app.CryptoRandomStr(16)
+	err := app.SetOIDCState(tok, state)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			app.BadTokenResponse(w, r)
+		default:
+			app.ServerErrResponse(w, r, err)
+		}
+		return
+	}
+
+	halfUrl := "https://accounts.google.com/o/oauth2/v2/auth?client_id=%v&response_type=code&state=%v&scope=openid%%20profile%%20email&redirect_uri=%v&nonce=%v"
+	url := fmt.Sprintf(halfUrl, app.Cfg.OIDC.Google.ClientID, state, "http://localhost/auth/google/redirect", nonce)
+	err = app.WriteJSON(w, http.StatusOK, application.Envelope{"url": url}, nil)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
 }

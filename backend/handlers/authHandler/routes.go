@@ -26,5 +26,8 @@ func (app *AuthApplication) Routes() http.Handler {
 	r.Post("/register", app.RegisterUserHandler)
 	r.Post("/login", app.LoginHandler)
 	r.Get("/activate", app.ActivateUserHandler)
+	// this handler has url hardcoded
+	r.Get("/google/oidcURL", app.getGoogleOidcUrlHandler)
+	//r.Get("/google/redirect", app.)
 	return r
 }

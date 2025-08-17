@@ -15,7 +15,8 @@ type CustomHandler struct {
 func (h CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Add stack trace if it's an error level
 	if r.Level >= slog.LevelError {
-		r.AddAttrs(slog.String("stack", string(debug.Stack())))
+		stack := string(debug.Stack())
+		r.AddAttrs(slog.String("stack", stack))
 	}
 
 	return h.Handler.Handle(ctx, r)

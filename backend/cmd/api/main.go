@@ -68,8 +68,11 @@ func main() {
 	flag.StringVar(&cfg.TokenLife.ActivateToken.LifeStr, "activateTokenLife", "48h", "How long a activation token is alive. Units are all valid units in time.ParseDuration")
 
 	flag.StringVar(&cfg.SessionCookie, "session-cookie", "SessionCookie", "Name of the session cookie")
-	flag.StringVar(&cfg.Oauth.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
-	flag.StringVar(&cfg.Oauth.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
+	flag.StringVar(&cfg.OIDC.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
+	flag.StringVar(&cfg.OIDC.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
+
+	flag.StringVar(&cfg.Auth.OIDCStateKey, "OIDCStateKey", "OIDCState", "key for storing OIDC state for CSRF protection")
+	flag.StringVar(&cfg.Auth.OIDCNonceKey, "OIDCNonceKey", "OIDCNonce", "key for storing OIDC nonce for oidc")
 
 	flag.Parse()
 
@@ -77,6 +80,7 @@ func main() {
 		Cfg:    &cfg,
 		Logger: jsonlog.New(os.Stdout),
 	}
+	app.Logger.Error("test", "key", "val")
 	err := app.Cfg.Configure()
 	if err != nil {
 		app.Logger.Error("Configuring Config failed", "Err", err.Error())

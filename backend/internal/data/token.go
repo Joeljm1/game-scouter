@@ -65,7 +65,7 @@ func (m *TokenModel) Insert(tok *Token) error {
 	return nil
 }
 
-// check for [ErrConflictFound] and [ErrNoRows] which is = [pgx.ErrNoRows]
+// check for [ErrNoRows] which is = [pgx.ErrNoRows]
 func (m *TokenModel) Update(tok *Token) error {
 	query := `UPDATE token SET expiry=$1,data=$2 where hash=$3 `
 	args := []any{tok.Expiry, tok.Data, tok.Hash}
@@ -73,7 +73,7 @@ func (m *TokenModel) Update(tok *Token) error {
 	defer cancel()
 	cmdTag, err := m.Pool.Exec(ctx, query, args...)
 	if err != nil {
-		return ErrConflictFound
+		return err
 	}
 	if cmdTag.RowsAffected() == 0 {
 		return ErrNoRows
@@ -167,14 +167,14 @@ func (m *TokenModel) GetSessionVal(token string, key string) (any, bool, error) 
 		return nil, false, err
 	}
 	dataMap := map[string]any{}
-	if len(tok.Data) > 0 {
-		dataReader := bytes.NewReader(tok.Data)
-		err = gob.NewDecoder(dataReader).Decode(&dataMap)
-		if err != nil {
-			return nil, false, err
-		}
-		val, ok := dataMap[key]
-		return val, ok, nil
+	if len(tok.Data) == 0 {
+		return nil, false, nil
 	}
-	return nil, false, nil
+	dataReader := bytes.NewReader(tok.Data)
+	err = gob.NewDecoder(dataReader).Decode(&dataMap)
+	if err != nil {
+		return nil, false, err
+	}
+	val, ok := dataMap[key]
+	return val, ok, nil
 }

@@ -47,11 +47,15 @@ type Config struct {
 		Password string
 		Sender   string
 	}
-	Oauth struct {
+	OIDC struct {
 		Google struct {
 			ClientID     string
 			ClientSecret string
 		}
+	}
+	Auth struct {
+		OIDCStateKey string
+		OIDCNonceKey string
 	}
 }
 

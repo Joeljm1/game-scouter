@@ -65,3 +65,8 @@ func (app *Application) NotActivatedResponse(w http.ResponseWriter, r *http.Requ
 	msg := "user not activated"
 	app.ErrResponse(w, r, http.StatusForbidden, msg)
 }
+
+func (app *Application) BadTokenResponse(w http.ResponseWriter, r *http.Request) {
+	msg := "bad token recived"
+	app.ErrResponse(w, r, http.StatusBadRequest, msg)
+}
