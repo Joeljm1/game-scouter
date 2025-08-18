@@ -8,7 +8,6 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/wneessen/go-mail v0.6.2
 	golang.org/x/crypto v0.40.0
-	golang.org/x/time v0.12.0
 )
 
 require (

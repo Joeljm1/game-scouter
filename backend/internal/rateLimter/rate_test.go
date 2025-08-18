@@ -31,8 +31,8 @@ func TestNew(t *testing.T) {
 			if limiter.Tokens != float64(tt.burst) {
 				t.Errorf("New().Tokens = %v, want %v", limiter.Tokens, float64(tt.burst))
 			}
-			if time.Since(limiter.last) > time.Millisecond {
-				t.Errorf("New().last should be recent, but was %v ago", time.Since(limiter.last))
+			if time.Since(limiter.Last) > time.Millisecond {
+				t.Errorf("New().last should be recent, but was %v ago", time.Since(limiter.Last))
 			}
 		})
 	}
@@ -151,7 +151,7 @@ func TestInfiniteBurst(t *testing.T) {
 			Burst:  INF,
 			Rate:   1.0,
 			Tokens: INF,
-			last:   time.Now(),
+			Last:   time.Now(),
 		}
 
 		// Should always allow regardless of tokens requested
@@ -173,7 +173,7 @@ func TestZeroBurst(t *testing.T) {
 			Burst:  0,
 			Rate:   1.0,
 			Tokens: 0,
-			last:   time.Now(),
+			Last:   time.Now(),
 		}
 
 		// Should never allow any tokens

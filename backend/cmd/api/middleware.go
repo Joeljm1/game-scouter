@@ -13,9 +13,8 @@ import (
 	"game-scouter-api/internal/application"
 	customrespwriter "game-scouter-api/internal/customRespWriter"
 	"game-scouter-api/internal/data"
+	ratelimiter "game-scouter-api/internal/rateLimter"
 	"game-scouter-api/internal/validator"
-
-	"golang.org/x/time/rate"
 )
 
 func (app *serverApplication) Metrics(next http.Handler) http.Handler {
@@ -45,22 +44,22 @@ func (app *serverApplication) RecoverPanic(next http.Handler) http.Handler {
 	})
 }
 
+// WARN: Need to check if this can cause error
+// cause its my custom rate limiter
 func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
-	type client struct {
-		limiter     *rate.Limiter
-		lastAccesed time.Time
-	}
 	var mu sync.Mutex
-	clients := make(map[string]*client)
+	clients := make(map[string]*ratelimiter.Client)
 	go func() {
-		mu.Lock()
-		for ip, client := range clients {
-			if time.Since(client.lastAccesed) > time.Minute*3 {
-				delete(clients, ip)
+		for {
+			mu.Lock()
+			for ip, client := range clients {
+				if time.Since(client.LastAccesed) > time.Minute*3 {
+					delete(clients, ip)
+				}
 			}
+			mu.Unlock()
+			time.Sleep(time.Minute)
 		}
-		mu.Unlock()
-		time.Sleep(time.Minute)
 	}()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.Cfg.Limiter.Enabled {
@@ -71,12 +70,12 @@ func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 			}
 			mu.Lock()
 			if _, ok := clients[ip]; !ok {
-				clients[ip] = &client{
-					limiter: rate.NewLimiter(rate.Limit(app.Cfg.Limiter.Rps), app.Cfg.Limiter.Burst),
+				clients[ip] = &ratelimiter.Client{
+					Limiter: ratelimiter.New(app.Cfg.Limiter.Burst, app.Cfg.Limiter.Rps),
 				}
 			}
-			clients[ip].lastAccesed = time.Now()
-			if !clients[ip].limiter.Allow() {
+			clients[ip].LastAccesed = time.Now()
+			if !clients[ip].Limiter.Allow() {
 				mu.Unlock()
 				app.RateLimitExceededResponse(w, r)
 				return

@@ -14,7 +14,7 @@ type Limiter struct {
 	Burst  float64
 	Rate   float64
 	Tokens float64
-	last   time.Time
+	Last   time.Time
 }
 
 func New(burst int, rate float64) *Limiter {
@@ -25,7 +25,7 @@ func New(burst int, rate float64) *Limiter {
 		Burst:  float64(burst),
 		Rate:   rate,
 		Tokens: float64(burst),
-		last:   time.Now(),
+		Last:   time.Now(),
 	}
 }
 
@@ -41,11 +41,11 @@ func (l *Limiter) AllowN(n float64) bool {
 	case 0:
 		return false
 	default:
-		sinceLast := time.Since(l.last).Seconds()
+		sinceLast := time.Since(l.Last).Seconds()
 		l.Tokens = min(l.Tokens+sinceLast*l.Rate, float64(l.Burst))
 		if l.Tokens >= n {
 			l.Tokens -= n
-			l.last = time.Now()
+			l.Last = time.Now()
 			return true
 		}
 		return false
@@ -54,4 +54,31 @@ func (l *Limiter) AllowN(n float64) bool {
 
 func (l *Limiter) Allow() bool {
 	return l.AllowN(1)
+}
+
+type Client struct {
+	Limiter     *Limiter
+	LastAccesed time.Time
+}
+
+type Shard struct {
+	sync.Mutex
+	ID      int
+	Clients []Client
+}
+
+func NewShard(id int) *Shard {
+	return &Shard{
+		ID:      id,
+		Clients: make([]Client, 0),
+	}
+}
+
+func NewNShards(n int) []*Shard {
+	shards := make([]*Shard, 0, n)
+	for i := range n {
+		s := NewShard(i)
+		shards = append(shards, s)
+	}
+	return shards
 }
