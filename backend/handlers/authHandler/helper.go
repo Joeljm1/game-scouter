@@ -71,7 +71,7 @@ func (app *AuthApplication) SetOIDCNonce(token, code string) error {
 	return app.SetOIDCVal(token, code, key)
 }
 
-// NOTE: there might be a race condition in the nonce updating to db part
+// NOTE: there might be a race condition in the nonce updating to db part but dk if it matters
 func (app *AuthApplication) VerifyOIDCNonce(token, code string) (bool, error) {
 	key := app.Cfg.Auth.OIDCNonceKey
 	tok, err := app.Models.TokenModel.GetTokenFromTokenStr(token)

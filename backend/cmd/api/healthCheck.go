@@ -12,6 +12,8 @@ func (app *serverApplication) healthCheck(w http.ResponseWriter, r *http.Request
 			"Version":     version,
 			"environment": app.Cfg.Env,
 		},
+		//TODO: Remove this last put here for testing only
+		"UserID": app.GetUser(r).ID,
 	}
 	err := app.WriteJSON(w, http.StatusOK, data, nil)
 	if err != nil {

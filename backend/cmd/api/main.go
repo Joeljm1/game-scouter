@@ -8,6 +8,7 @@ import (
 	"game-scouter-api/internal/jsonlog"
 	"game-scouter-api/internal/mailer"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -37,6 +38,10 @@ func openDB(cfg application.Config) (*pgxpool.Pool, error) {
 
 func main() {
 	// in dev recieved from the make file
+
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
 	cfg := application.Config{}
 
 	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
@@ -46,6 +51,7 @@ func main() {
 	flag.Float64Var(&cfg.Limiter.Rps, "limiter-rps", 2, "Rate limiter for max usage per sec")
 	flag.IntVar(&cfg.Limiter.Burst, "limiter-burst", 4, "Rate limiter for max burst usage ")
 	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", true, "Enable rate limiter")
+	flag.IntVar(&cfg.Limiter.ShardNo, "shard", 8, "Number of shards for rate limiter")
 
 	// db
 	flag.StringVar(&cfg.DB.DSN, "db-dsn", os.Getenv("SCOUTER_DB_DSN"), "PostgreSQL DSN")
@@ -80,7 +86,6 @@ func main() {
 		Cfg:    &cfg,
 		Logger: jsonlog.New(os.Stdout),
 	}
-	app.Logger.Error("test", "key", "val")
 	err := app.Cfg.Configure()
 	if err != nil {
 		app.Logger.Error("Configuring Config failed", "Err", err.Error())

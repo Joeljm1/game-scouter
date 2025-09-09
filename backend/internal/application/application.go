@@ -30,6 +30,7 @@ type Config struct {
 		Rps     float64
 		Burst   int
 		Enabled bool
+		ShardNo int
 	}
 	Cors struct {
 		TrustedOrgins []string
@@ -56,6 +57,7 @@ type Config struct {
 	Auth struct {
 		OIDCStateKey string
 		OIDCNonceKey string
+		CacheUser    data.CachedUser
 	}
 }
 

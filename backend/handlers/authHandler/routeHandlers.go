@@ -54,7 +54,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	user.Password = psswd
-	err = app.Models.UserModel.Insert(&user)
+	err = app.Models.UserModel.Insert(r.Context(), &user)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrUniqueViolation):
@@ -110,7 +110,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		app.ValidationErrResponse(w, r, v.Errors)
 		return
 	}
-	user, err := app.Models.UserModel.GetUserfromToken(token, data.ScopeActivation)
+	user, err := app.Models.UserModel.GetUserfromToken(r.Context(), token, data.ScopeActivation)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRows):
@@ -122,7 +122,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	user.Activated = true
-	err = app.Models.UserModel.Update(user)
+	err = app.Models.UserModel.Update(r.Context(), user)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrConflictFound):
@@ -185,7 +185,7 @@ func (app *AuthApplication) LoginHandler(w http.ResponseWriter, r *http.Request)
 		app.ValidationErrResponse(w, r, v.Errors)
 		return
 	}
-	user, err := app.Models.UserModel.GetUserFromEmail(req.Email)
+	user, err := app.Models.UserModel.GetUserFromEmail(r.Context(), req.Email)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRows):

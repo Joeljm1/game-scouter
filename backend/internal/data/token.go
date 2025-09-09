@@ -8,6 +8,7 @@ import (
 	"encoding/base32"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"game-scouter-api/internal/validator"
 	"time"
 
@@ -87,7 +88,9 @@ func (m *TokenModel) GenerateAndInsertToken(userID int64, ttl time.Duration, sco
 	if err != nil {
 		return nil, err
 	}
+	t := time.Now()
 	err = m.Insert(tok)
+	fmt.Printf("time for inserting token is %v", time.Since(t).Microseconds())
 	return tok, err
 }
 
@@ -117,7 +120,7 @@ func MatchPassword(plainText string, hash []byte) (bool, error) {
 	return true, nil
 }
 
-// Check if error returned is [pgx.ErrNoRows]
+// Check if error returned from this is [pgx.ErrNoRows]
 func (m *TokenModel) GetTokenFromTokenStr(token string) (*Token, error) {
 	hashArr := sha256.Sum256([]byte(token))
 	hash := hashArr[:]
@@ -135,7 +138,7 @@ func (m *TokenModel) GetTokenFromTokenStr(token string) (*Token, error) {
 	return &tok, err
 }
 
-// Check if error returned is [pgx.ErrNoRows] and [ErrConflictFound]
+// Check if error returned from this is [pgx.ErrNoRows] and [ErrConflictFound]
 func (m *TokenModel) StoreSessionVal(token, key string, val any) error {
 	tok, err := m.GetTokenFromTokenStr(token)
 	if err != nil {

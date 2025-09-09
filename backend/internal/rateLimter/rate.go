@@ -1,6 +1,7 @@
 package ratelimiter
 
 import (
+	"hash/fnv"
 	"math"
 	"sync"
 	"time"
@@ -64,21 +65,58 @@ type Client struct {
 type Shard struct {
 	sync.Mutex
 	ID      int
-	Clients []Client
+	Clients map[string]*Client
 }
+
+// Do not update ShardStore data
+// after creation
+type ShardStore []*Shard
 
 func NewShard(id int) *Shard {
 	return &Shard{
 		ID:      id,
-		Clients: make([]Client, 0),
+		Clients: make(map[string]*Client),
 	}
 }
 
-func NewNShards(n int) []*Shard {
+// Takes the lock of the shard to and unlocks at end
+func (s *Shard) CleanShard() {
+	s.Lock()
+	defer s.Unlock()
+	for ip, cl := range s.Clients {
+		if time.Since(cl.LastAccesed) > 3*time.Minute {
+			delete(s.Clients, ip)
+		}
+	}
+}
+
+func NewNShards(n int) ShardStore {
 	shards := make([]*Shard, 0, n)
 	for i := range n {
 		s := NewShard(i)
 		shards = append(shards, s)
 	}
 	return shards
+}
+
+// WARN: Check if it updates orginal and muterx is not copies
+// Prolly should not as mutex has noCopy struct
+func (ss ShardStore) CleanShardStore() {
+	maxTurn := len(ss)
+	currTurn := 0
+	for {
+		ss[currTurn].CleanShard()
+		currTurn = (currTurn + 1) % maxTurn
+		time.Sleep(time.Minute)
+	}
+}
+
+func (ss ShardStore) GetShardFromIP(ip string) (*Shard, error) {
+	f := fnv.New64a()
+	_, err := f.Write([]byte(ip))
+	if err != nil {
+		return nil, err
+	}
+	h := f.Sum64()
+	return ss[int(h%uint64(len(ss)))], nil
 }

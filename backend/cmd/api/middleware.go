@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"slices"
-	"sync"
 	"time"
 
 	"game-scouter-api/internal/application"
@@ -18,6 +18,7 @@ import (
 )
 
 func (app *serverApplication) Metrics(next http.Handler) http.Handler {
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// m := httpsnoop.CaptureMetrics(next, w, r)
 		newW := customrespwriter.New(w)
@@ -44,23 +45,12 @@ func (app *serverApplication) RecoverPanic(next http.Handler) http.Handler {
 	})
 }
 
+// May be make limiter based on user ID later instead of IP
 // WARN: Need to check if this can cause error
 // cause its my custom rate limiter
 func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
-	var mu sync.Mutex
-	clients := make(map[string]*ratelimiter.Client)
-	go func() {
-		for {
-			mu.Lock()
-			for ip, client := range clients {
-				if time.Since(client.LastAccesed) > time.Minute*3 {
-					delete(clients, ip)
-				}
-			}
-			mu.Unlock()
-			time.Sleep(time.Minute)
-		}
-	}()
+	shards := ratelimiter.NewNShards(app.Cfg.Limiter.ShardNo)
+	go shards.CleanShardStore()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.Cfg.Limiter.Enabled {
 			ip, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -68,24 +58,68 @@ func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 				app.ServerErrResponse(w, r, err)
 				return
 			}
-			mu.Lock()
-			if _, ok := clients[ip]; !ok {
-				clients[ip] = &ratelimiter.Client{
+			userShard, err := shards.GetShardFromIP(ip)
+			if err != nil {
+				app.ServerErrResponse(w, r, err)
+				return
+			}
+			userShard.Lock()
+			if _, ok := userShard.Clients[ip]; !ok {
+				userShard.Clients[ip] = &ratelimiter.Client{
 					Limiter: ratelimiter.New(app.Cfg.Limiter.Burst, app.Cfg.Limiter.Rps),
 				}
 			}
-			clients[ip].LastAccesed = time.Now()
-			if !clients[ip].Limiter.Allow() {
-				mu.Unlock()
+			userShard.Clients[ip].LastAccesed = time.Now()
+			if !userShard.Clients[ip].Limiter.Allow() {
+				userShard.Unlock()
 				app.RateLimitExceededResponse(w, r)
 				return
 			}
-			mu.Unlock()
+			userShard.Unlock()
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
+//	func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
+//		var mu sync.Mutex
+//		clients := make(map[string]*ratelimiter.Client)
+//		go func() {
+//			for {
+//				mu.Lock()
+//				for ip, client := range clients {
+//					if time.Since(client.LastAccesed) > time.Minute*3 {
+//						delete(clients, ip)
+//					}
+//				}
+//				mu.Unlock()
+//				time.Sleep(time.Minute)
+//			}
+//		}()
+//		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//			if app.Cfg.Limiter.Enabled {
+//				ip, _, err := net.SplitHostPort(r.RemoteAddr)
+//				if err != nil {
+//					app.ServerErrResponse(w, r, err)
+//					return
+//				}
+//				mu.Lock()
+//				if _, ok := clients[ip]; !ok {
+//					clients[ip] = &ratelimiter.Client{
+//						Limiter: ratelimiter.New(app.Cfg.Limiter.Burst, app.Cfg.Limiter.Rps),
+//					}
+//				}
+//				clients[ip].LastAccesed = time.Now()
+//				if !clients[ip].Limiter.Allow() {
+//					mu.Unlock()
+//					app.RateLimitExceededResponse(w, r)
+//					return
+//				}
+//				mu.Unlock()
+//			}
+//			next.ServeHTTP(w, r)
+//		})
+//	}
 func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Origin")
