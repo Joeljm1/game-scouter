@@ -121,6 +121,7 @@ func MatchPassword(plainText string, hash []byte) (bool, error) {
 }
 
 // Check if error returned from this is [pgx.ErrNoRows]
+// Returns token struct if present
 func (m *TokenModel) GetTokenFromTokenStr(token string) (*Token, error) {
 	hashArr := sha256.Sum256([]byte(token))
 	hash := hashArr[:]

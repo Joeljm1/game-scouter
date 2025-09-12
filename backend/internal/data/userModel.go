@@ -20,6 +20,7 @@ type CachedUser struct {
 
 type CashedSess struct {
 	Users map[string]*CachedUser
+	ttl   time.Duration
 	sync.RWMutex
 }
 
@@ -43,13 +44,28 @@ func (cs *CashedSess) setUser(token string, user *User) {
 	}
 }
 
-type UserModel struct {
-	Pool      *pgxpool.Pool
-	CacheSess CashedSess
+func (cs *CashedSess) clean(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Minute)
+	for {
+		select {
+		case <-ticker.C:
+			cs.Lock()
+			for token, cUsers := range cs.Users {
+				if time.Since(cUsers.lastUsed) > cs.ttl {
+					delete(cs.Users, token)
+				}
+			}
+			cs.Unlock()
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
-// TODO: clear cache val after some time and be concurrent safe
-// in [UserModel.GetUserfromToken]
+type UserModel struct {
+	Pool      *pgxpool.Pool
+	CacheSess *CashedSess
+}
 
 var (
 	ErrUniqueViolation = errors.New("unique key violation found")
@@ -57,7 +73,7 @@ var (
 	ErrNoRows          = pgx.ErrNoRows
 )
 
-// Insert check for ErrUniqueViolation as error after inserting
+// Insert check for [ErrUniqueViolation] as error after inserting
 func (m *UserModel) Insert(ctx context.Context, user *User) error {
 	query := `INSERT INTO users
 	(name ,email,password_hash,activated)
@@ -117,7 +133,6 @@ func (m *UserModel) Update(ctx context.Context, user *User) error {
 }
 
 // NOTE: Token should not be hashed one just pllaintext
-// TODO: May be if need chache the tokens to temporarily
 func (m *UserModel) GetUserfromToken(ctx context.Context, token string, scope string) (*User, error) {
 	userFromCache, ok := m.CacheSess.getUser(token)
 	if ok {

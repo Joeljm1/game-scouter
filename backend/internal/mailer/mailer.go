@@ -45,7 +45,7 @@ func New(host, username, password, sender string, port int) (*Mailer, error) {
 // data rn has activationToken and userID
 func (m *Mailer) Send(to string, data any) error {
 	// Do once and is cached for later use
-	// Im doing thos cause i think paring templates in expensive
+	// Im doing thos cause i think parsing templates in expensive
 	// may be i should have done it in init fn??
 	m.initTmpl.Do(m.initializeTemplates)
 	msg := mail.NewMsg()

@@ -14,9 +14,12 @@ import (
 	"errors"
 	"fmt"
 	"game-scouter-api/internal/application"
+	oidc "game-scouter-api/internal/application/OIDC"
+	"game-scouter-api/internal/application/OIDC/jwt"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/validator"
 	"net/http"
+	"net/url"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -231,11 +234,71 @@ func (app *AuthApplication) getGoogleOidcUrlHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	halfUrl := "https://accounts.google.com/o/oauth2/v2/auth?client_id=%v&response_type=code&state=%v&scope=openid%%20profile%%20email&redirect_uri=%v&nonce=%v"
-	url := fmt.Sprintf(halfUrl, app.Cfg.OIDC.Google.ClientID, state, "http://localhost/auth/google/redirect", nonce)
+	halfUrl := "%v?client_id=%v&response_type=code&state=%v&scope=openid%%20profile%%20email&redirect_uri=%v&nonce=%v"
+	authEndpoint := app.Cfg.OIDC.Google.DocumentDiscovery.AuthorizationEndpoint
+	url := fmt.Sprintf(halfUrl, authEndpoint, app.Cfg.OIDC.Google.ClientID, state, app.Cfg.OIDC.Google.OIDCRedirectURL, nonce)
 	err = app.WriteJSON(w, http.StatusOK, application.Envelope{"url": url}, nil)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
+}
+
+type TokenResp struct {
+	Token  string `json:"id_token"`
+	Expire int    `json:"expires_in"`
+}
+
+func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	state := r.URL.Query().Get("state")
+	tok := app.GetTok(r)
+	ok, err := app.VerifyOIDCState(tok, state)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			app.NotAuthenticatedResponse(w, r)
+		default:
+			app.ServerErrResponse(w, r, err)
+		}
+		return
+	}
+	if !ok {
+		app.BadReqResponse(w, r, err)
+		return
+	}
+	tokenUrl := app.Cfg.OIDC.Google.DocumentDiscovery.TokenEndpoint
+	query := url.Values{}
+	query.Set("code", code)
+	query.Set("client_id", app.Cfg.OIDC.Google.ClientID)
+	query.Set("client_secret", app.Cfg.OIDC.Google.ClientSecret)
+	query.Set("redirect_uri", app.Cfg.OIDC.Google.OIDCRedirectURL)
+	query.Set("grant_type", "authorization_code")
+	resp, err := app.HttpClient.PostForm(tokenUrl, query)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	defer resp.Body.Close()
+	oResp, err := oidc.NewResp(resp.Body)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	JWT, err := jwt.New(oResp.IDToken)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	valid, err := app.Cfg.OIDC.Google.Verify(JWT)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	if !valid {
+		app.BadReqResponse(w, r, errors.New("JWT is not valid"))
+		return
+	}
+
+	//TODO: check db if user present replace session else new user to
 }

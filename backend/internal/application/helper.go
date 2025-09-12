@@ -150,6 +150,7 @@ type UserVal struct {
 	Tok  string
 }
 
+// sets user and toekn val to context
 func (app *Application) SetUser(r *http.Request, user *data.User, tok string) *http.Request {
 	if user == nil || tok == "" {
 		panic("user is nill or token is empty")

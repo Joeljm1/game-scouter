@@ -28,6 +28,6 @@ func (app *AuthApplication) Routes() http.Handler {
 	r.Get("/activate", app.ActivateUserHandler)
 	// this handler has url hardcoded
 	r.Get("/google/oidcURL", app.getGoogleOidcUrlHandler)
-	//r.Get("/google/redirect", app.)
+	r.Get("/google/redirect", app.googleOIDCRedirectHandler)
 	return r
 }

@@ -29,7 +29,7 @@ func openDB(cfg application.Config) (*pgxpool.Pool, error) {
 	}
 	pgxPoolCfg.MaxConnIdleTime = idletime
 	pgxPoolCfg.MaxConns = int32(cfg.DB.MaxOpenConns)
-	pool, err := pgxpool.New(context.Background(), cfg.DB.DSN)
+	pool, err := pgxpool.NewWithConfig(context.Background(), pgxPoolCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,11 @@ func main() {
 	go func() {
 		http.ListenAndServe("localhost:6060", nil)
 	}()
-	cfg := application.Config{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cfg := application.Config{
+		Ctx:       ctx,
+		CtxCancel: cancel,
+	}
 
 	flag.IntVar(&cfg.Port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.Env, "environment", "development", "development|staging|production")
@@ -73,9 +77,11 @@ func main() {
 	flag.StringVar(&cfg.TokenLife.AuthToken.LifeStr, "authTokenLife", "24h", "How long a session token is alive. Units are all valid units in time.ParseDuration")
 	flag.StringVar(&cfg.TokenLife.ActivateToken.LifeStr, "activateTokenLife", "48h", "How long a activation token is alive. Units are all valid units in time.ParseDuration")
 
+	//Auth
 	flag.StringVar(&cfg.SessionCookie, "session-cookie", "SessionCookie", "Name of the session cookie")
 	flag.StringVar(&cfg.OIDC.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
 	flag.StringVar(&cfg.OIDC.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
+	flag.StringVar(&cfg.OIDC.Google.OIDCRedirectURL, "google-outh-redirect-url", "http://localhost:4000/auth/google/redirect", "client secret for google outh")
 
 	flag.StringVar(&cfg.Auth.OIDCStateKey, "OIDCStateKey", "OIDCState", "key for storing OIDC state for CSRF protection")
 	flag.StringVar(&cfg.Auth.OIDCNonceKey, "OIDCNonceKey", "OIDCNonce", "key for storing OIDC nonce for oidc")
@@ -86,7 +92,7 @@ func main() {
 		Cfg:    &cfg,
 		Logger: jsonlog.New(os.Stdout),
 	}
-	err := app.Cfg.Configure()
+	err := app.Configure()
 	if err != nil {
 		app.Logger.Error("Configuring Config failed", "Err", err.Error())
 		os.Exit(1)
@@ -100,7 +106,7 @@ func main() {
 		app.Logger.Error("redis pool connection error", "Err", err.Error())
 		os.Exit(1)
 	}
-	app.Models = data.New(pool)
+	app.Models = data.NewModels(pool, ctx)
 	m, err := mailer.New(cfg.SMTP.Host, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.Sender, cfg.SMTP.Port)
 	if err != nil {
 		app.Logger.Error("SMTP Config wrong")

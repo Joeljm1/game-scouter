@@ -1,17 +1,22 @@
 // Package application contains Application
 // which contains data to be shared by all
-// handlers
+// handlers and thier configuration
 package application
 
 import (
+	"context"
+	"game-scouter-api/internal/application/OIDC/google"
 	"game-scouter-api/internal/data"
 	"game-scouter-api/internal/mailer"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 )
 
 type Config struct {
+	Ctx       context.Context
+	CtxCancel context.CancelFunc
 	Port      int
 	Env       string
 	TokenLife struct {
@@ -49,10 +54,7 @@ type Config struct {
 		Sender   string
 	}
 	OIDC struct {
-		Google struct {
-			ClientID     string
-			ClientSecret string
-		}
+		Google google.Google
 	}
 	Auth struct {
 		OIDCStateKey string
@@ -67,6 +69,7 @@ type Application struct {
 	Models       data.Models
 	BackgroundWG sync.WaitGroup
 	Mailer       *mailer.Mailer
+	HttpClient   *http.Client
 }
 
 func (cfg *Config) ConfigureAuthTokenLife() error {
@@ -98,4 +101,33 @@ func (cfg *Config) Configure() error {
 	}
 	return nil
 
+}
+
+func (app *Application) ConfigureHttp() {
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	app.HttpClient = client
+
+}
+
+func (app *Application) ConfigureGoogle() error {
+	// done like this cause google client secret and all were set at initalisation in main
+	err := app.Cfg.OIDC.Google.Configure(app.HttpClient)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (app *Application) Configure() error {
+	app.ConfigureHttp()
+	err := app.Cfg.Configure()
+	if err != nil {
+		return err
+	}
+	err = app.ConfigureGoogle()
+	if err != nil {
+		return err
+	}
+	return nil
 }

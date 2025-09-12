@@ -184,7 +184,7 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 			app.ValidationErrResponse(w, r, v.Errors)
 			return
 		}
-		user, err := app.Models.UserModel.GetUserfromToken(token, data.ScopeAuthentication)
+		user, err := app.Models.UserModel.GetUserfromToken(r.Context(), token, data.ScopeAuthentication)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRows):

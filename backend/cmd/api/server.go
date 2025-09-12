@@ -34,6 +34,8 @@ func (app *serverApplication) run() error {
 		}
 		app.Logger.Info("waiting for background processes")
 		app.BackgroundWG.Wait()
+		// to cancel other function which not run for app ex sessioncache deletion
+		app.Cfg.CtxCancel()
 		shutDown <- nil
 	}()
 	app.Logger.Info("Starting server ",
