@@ -8,7 +8,6 @@ import (
 	"encoding/base32"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"game-scouter-api/internal/validator"
 	"time"
 
@@ -88,9 +87,7 @@ func (m *TokenModel) GenerateAndInsertToken(userID int64, ttl time.Duration, sco
 	if err != nil {
 		return nil, err
 	}
-	t := time.Now()
 	err = m.Insert(tok)
-	fmt.Printf("time for inserting token is %v", time.Since(t).Microseconds())
 	return tok, err
 }
 

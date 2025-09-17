@@ -17,7 +17,7 @@ func NewModels(pool *pgxpool.Pool, ctx context.Context) Models {
 	cs := &CashedSess{
 		Users: map[string]*CachedUser{},
 	}
-	//i doubt this will panic but ther could be nil pointer so need to put a
+	//TODO:i doubt this will panic but ther could be nil pointer so need to put a
 	//recover over it
 	go cs.clean(ctx)
 	return Models{

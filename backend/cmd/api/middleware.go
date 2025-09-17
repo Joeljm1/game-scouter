@@ -18,7 +18,6 @@ import (
 )
 
 func (app *serverApplication) Metrics(next http.Handler) http.Handler {
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// m := httpsnoop.CaptureMetrics(next, w, r)
 		newW := customrespwriter.New(w)
@@ -166,7 +165,6 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 		w.Header().Add("Vary", "Cookie")
 		cookie, err := r.Cookie(app.Cfg.SessionCookie)
 		if err != nil {
-			//TODO: cookie not pressent so make a session
 			cookie, tok, err := app.AnonUserCookie()
 			if err != nil {
 				app.ServerErrResponse(w, r, err)

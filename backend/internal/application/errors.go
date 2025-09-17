@@ -26,6 +26,7 @@ func (app *Application) ServerErrResponse(w http.ResponseWriter, r *http.Request
 	app.ErrResponse(w, r, http.StatusInternalServerError, msg)
 }
 
+// Make sure error is not nil
 func (app *Application) BadReqResponse(w http.ResponseWriter, r *http.Request, err error) {
 	if err != nil { // just incase ig should never prolly happen
 		app.ErrResponse(w, r, http.StatusBadRequest, err.Error())

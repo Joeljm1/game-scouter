@@ -69,7 +69,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	tok, err := app.Models.TokenModel.GenerateAndInsertToken(user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
-	fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration)
+	//NOTE: there was a print here  fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration) dk if it mattered or for debugging
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -252,6 +252,11 @@ type TokenResp struct {
 func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
+	if code == "" || state == "" {
+		app.BadReqResponse(w, r, errors.New("missing code/state as URL param"))
+		return
+	}
+
 	tok := app.GetTok(r)
 	ok, err := app.VerifyOIDCState(tok, state)
 	if err != nil {
@@ -263,10 +268,12 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		}
 		return
 	}
+
 	if !ok {
-		app.BadReqResponse(w, r, err)
+		app.BadReqResponse(w, r, errors.New("invalid OIDC State"))
 		return
 	}
+
 	tokenUrl := app.Cfg.OIDC.Google.DocumentDiscovery.TokenEndpoint
 	query := url.Values{}
 	query.Set("code", code)
@@ -274,11 +281,13 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 	query.Set("client_secret", app.Cfg.OIDC.Google.ClientSecret)
 	query.Set("redirect_uri", app.Cfg.OIDC.Google.OIDCRedirectURL)
 	query.Set("grant_type", "authorization_code")
+
 	resp, err := app.HttpClient.PostForm(tokenUrl, query)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
+
 	defer resp.Body.Close()
 	oResp, err := oidc.NewResp(resp.Body)
 	if err != nil {
@@ -300,5 +309,8 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		return
 	}
 
+	app.Logger.Info("Auth successful")
+	app.Logger.Info(JWT.Payload)
+	app.WriteJSON(w, http.StatusOK, application.Envelope{"data": JWT.Payload}, nil)
 	//TODO: check db if user present replace session else new user to
 }

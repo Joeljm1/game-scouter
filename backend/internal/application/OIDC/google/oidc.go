@@ -41,7 +41,6 @@ type GoogleDiscovery struct {
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
 }
 
-// TODO: Prolly make this type outside to share
 type AuthError struct {
 	Err error
 	Msg string
@@ -198,6 +197,27 @@ func (g Google) verifyRSA256(pk *rsa.PublicKey, header string, payload string, s
 	return nil
 }
 
+type GoogleOIDCResp struct {
+	Aud string
+	exp string
+	iat string
+	iss string
+	sub string
+
+	at_hash        *string
+	azp            *string
+	email          *string
+	email_verified *string
+	family_name    *string
+	given_name     *string
+	hd             *string
+	locale         *string
+	name           *string
+	nonce          *string
+	picture        *string
+	profile        *string
+}
+
 // Verifies the jwt
 func (g Google) Verify(jwt jwt.JWT) (bool, error) {
 	header, err := jwt.ParseJWTHeader()
@@ -222,5 +242,10 @@ func (g Google) Verify(jwt jwt.JWT) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
+	decP, err := jwt.DecodedPayload()
+	if err != nil {
+		return false, err
+	}
+	//TODO: check iss, nonce and all of payload to
 	return true, nil
 }
