@@ -1,17 +1,18 @@
 package google
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"game-scouter-api/internal/application/OIDC/jwt"
 	"game-scouter-api/internal/customErr"
 	"math/big"
 	"net/http"
+	"time"
 )
 
 const googleDiscoveryURL = "https://accounts.google.com/.well-known/openid-configuration"
@@ -39,15 +40,6 @@ type GoogleDiscovery struct {
 	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
 	ClaimsSupported                   []string `json:"claims_supported"`
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
-}
-
-type AuthError struct {
-	Err error
-	Msg string
-}
-
-func (err AuthError) Error() string {
-	return fmt.Sprintf("error:%v , Msg:%v", err.Err.Error(), err.Msg)
 }
 
 type JWK struct {
@@ -198,54 +190,103 @@ func (g Google) verifyRSA256(pk *rsa.PublicKey, header string, payload string, s
 }
 
 type GoogleOIDCResp struct {
-	Aud string
-	exp string
-	iat string
-	iss string
-	sub string
+	Aud string `json:"aud"`
+	Exp int64  `json:"exp"`
+	Iat int64  `json:"iat"`
+	Iss string `json:"iss"`
+	Sub string `json:"sub"`
 
-	at_hash        *string
-	azp            *string
-	email          *string
-	email_verified *string
-	family_name    *string
-	given_name     *string
-	hd             *string
-	locale         *string
-	name           *string
-	nonce          *string
-	picture        *string
-	profile        *string
+	At_hash        *string `json:"at_hash"`
+	Azp            *string `json:"azp"`
+	Email          *string `json:"email"`
+	Email_verified *bool   `json:"email_verified"`
+	Family_name    *string `json:"family_name"`
+	Given_name     *string `json:"given_name"`
+	Hd             *string `json:"hd"`
+	Locale         *string `json:"locale"`
+	Name           *string `json:"name"`
+	Nonce          *string `json:"nonce"`
+	Picture        *string `json:"picture"`
+	Profile        *string `json:"profile"`
 }
 
-// Verifies the jwt
-func (g Google) Verify(jwt jwt.JWT) (bool, error) {
+// return nil if valid.
+// Nonce must be verified seperatly
+func (g Google) VerifyPayload(gResp GoogleOIDCResp) error {
+	if g.DocumentDiscovery == nil {
+		panic("Google Discovery document not set")
+	}
+	if gResp.Iss != g.DocumentDiscovery.Issuer {
+		return ReqError{
+			Msg: "Issuer of payload is not same",
+			Err: errors.New("Issuer of payload is not same"),
+		}
+	}
+	if gResp.Aud != g.ClientID {
+		return ReqError{
+			Msg: "Aud of payload is not same as clientID",
+			Err: errors.New("Aud of payload is not same as clientID"),
+		}
+	}
+	t := time.Unix(gResp.Exp, 0)
+	if time.Since(t) > 0 {
+		return ReqError{
+			Msg: "Token expired",
+			Err: errors.New("Token expired"),
+		}
+	}
+	return nil
+}
+
+// Verifies the jwt and return nonce as string to for verifying
+func (g Google) Verify(jwt jwt.JWT) (bool, string, error) {
 	header, err := jwt.ParseJWTHeader()
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
-	if header.Alg != "RS256" {
-		return false, customErr.Err{
+	//default is RSA256
+	if header.Alg != "RS256" && header.Alg != "" {
+		return false, "", customErr.Err{
 			Msg: "Algorithm of jwt in oidc to google not rsa256",
 			Err: errors.New("algorithm of jwt in oidc to google not rsa256"),
 		}
 	}
 	pk, err := g.validPublicKey(header.Kid)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	ds, err := jwt.DecodedSign()
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
+	// OIDC tells its optional if got directly from provider but i did it
+	// may be no need of verify??
 	err = g.verifyRSA256(pk, jwt.Header, jwt.Payload, ds)
 	if err != nil {
-		return false, nil
+		return false, "", nil
 	}
 	decP, err := jwt.DecodedPayload()
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
-	//TODO: check iss, nonce and all of payload to
-	return true, nil
+	decPReader := bytes.NewReader(decP)
+	var gOIDCResp GoogleOIDCResp
+	err = json.NewDecoder(decPReader).Decode(&gOIDCResp)
+	if err != nil {
+		return false, "", customErr.Err{
+			Msg: "Error decoding Payload to GoogleOIDCResp",
+			Err: err,
+		}
+	}
+	err = g.VerifyPayload(gOIDCResp)
+	if err != nil {
+		return false, "", err
+	}
+	if gOIDCResp.Nonce == nil {
+		return false, "", ReqError{
+			Msg: "Nonce is missing",
+			Err: errors.New("Nonce is missing"),
+		}
+	}
+	return true, *gOIDCResp.Nonce, nil
 }

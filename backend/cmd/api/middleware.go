@@ -13,6 +13,7 @@ import (
 	"game-scouter-api/internal/application"
 	customrespwriter "game-scouter-api/internal/customRespWriter"
 	"game-scouter-api/internal/data"
+	"game-scouter-api/internal/jsonlog"
 	ratelimiter "game-scouter-api/internal/rateLimter"
 	"game-scouter-api/internal/validator"
 )
@@ -142,6 +143,7 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 }
 
 // NOTE: Used to prevent csrf attack for endpoints that cause changes
+// as session cookie is of type SameSiteNone mode due to sep frontend and backend
 func (app *serverApplication) CheckCustomHeader(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -204,6 +206,7 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 func (app *serverApplication) reqAuthUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.GetUser(r)
+		fmt.Println("Got user")
 		if user.IsAnonymous() {
 			app.NotAuthenticatedResponse(w, r)
 			return
@@ -223,4 +226,11 @@ func (app *serverApplication) reqActivatedUser(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 	return app.reqAuthUser(fn)
+}
+
+func (app *serverApplication) PassLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req := jsonlog.SetLogger(r, app.Logger)
+		next.ServeHTTP(w, req)
+	})
 }

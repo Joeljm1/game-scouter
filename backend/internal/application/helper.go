@@ -141,9 +141,7 @@ func GetFromQuery(r *http.Request, key string) string {
 	return val
 }
 
-type ContextKey string
-
-var userKey = ContextKey("user")
+var userKey = data.ContextKey("user")
 
 type UserVal struct {
 	User *data.User

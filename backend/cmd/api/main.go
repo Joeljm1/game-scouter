@@ -102,10 +102,10 @@ func main() {
 		app.Logger.Error("DB pool connection error", "Err", err.Error())
 		os.Exit(1)
 	}
-	if err != nil {
-		app.Logger.Error("redis pool connection error", "Err", err.Error())
-		os.Exit(1)
-	}
+	// if err != nil {
+	// 	app.Logger.Error("redis pool connection error", "Err", err.Error())
+	// 	os.Exit(1)
+	// }
 	app.Models = data.NewModels(pool, ctx)
 	m, err := mailer.New(cfg.SMTP.Host, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.Sender, cfg.SMTP.Port)
 	if err != nil {

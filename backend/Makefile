@@ -22,7 +22,7 @@ db/migration/new:
 ## db/psql: connect to the database using psql
 .PHONY: db/psql
 db/psql:
-	psql ${SCOUTER_DB_DSN}
+	pgcli ${SCOUTER_DB_DSN}
 
 ## db/migrations/up: apply all up database migrations
 .PHONY: db/migration/up

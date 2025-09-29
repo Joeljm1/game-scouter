@@ -3,8 +3,11 @@ package jsonlog
 
 import (
 	"context"
+	"errors"
+	"game-scouter-api/internal/data"
 	"io"
 	"log/slog"
+	"net/http"
 	"runtime/debug"
 )
 
@@ -27,4 +30,31 @@ func New(w io.Writer) *slog.Logger {
 	customH := CustomHandler{baseH}
 	logger := slog.New(customH)
 	return logger
+}
+
+var logKey = data.ContextKey("logger")
+
+func SetLogger(r *http.Request, logger *slog.Logger) *http.Request {
+	if logger == nil {
+		panic("user is nill or token is empty")
+	}
+	ctx := context.WithValue(r.Context(), logKey, logger)
+	req := r.WithContext(ctx)
+	return req
+}
+
+var (
+	ErrLoggerNil = errors.New("logger is nil")
+	ErrNoLogger  = errors.New("logger does not exist")
+)
+
+func GetLogger(ctx context.Context) (*slog.Logger, error) {
+	logger, ok := ctx.Value(logKey).(*slog.Logger)
+	if !ok {
+		return nil, ErrNoLogger
+	}
+	if logger == nil {
+		return nil, ErrLoggerNil
+	}
+	return logger, nil
 }

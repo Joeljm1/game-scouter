@@ -21,6 +21,7 @@ func (app *serverApplication) routes() http.Handler {
 	mux.Use(app.RateLimit)
 	mux.Use(app.CheckCustomHeader)
 	mux.Use(app.EnableCORS)
+	mux.Use(app.PassLogger)
 	mux.Use(app.Authenticate)
 	mux.Get("/v1/health", app.healthCheck)
 

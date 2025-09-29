@@ -225,15 +225,20 @@ func (app *AuthApplication) getGoogleOidcUrlHandler(w http.ResponseWriter, r *ht
 	nonce := app.CryptoRandomStr(16)
 	err := app.SetOIDCState(tok, state)
 	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			app.BadTokenResponse(w, r)
-		default:
-			app.ServerErrResponse(w, r, err)
-		}
+		// switch {
+		// case errors.Is(err, pgx.ErrNoRows):
+		// 	app.BadTokenResponse(w, r)
+		// default:
+		// 	app.ServerErrResponse(w, r, err)
+		// }
+		app.ServerErrResponse(w, r, err)
 		return
 	}
-
+	err = app.SetOIDCNonce(tok, nonce)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
 	halfUrl := "%v?client_id=%v&response_type=code&state=%v&scope=openid%%20profile%%20email&redirect_uri=%v&nonce=%v"
 	authEndpoint := app.Cfg.OIDC.Google.DocumentDiscovery.AuthorizationEndpoint
 	url := fmt.Sprintf(halfUrl, authEndpoint, app.Cfg.OIDC.Google.ClientID, state, app.Cfg.OIDC.Google.OIDCRedirectURL, nonce)
@@ -299,7 +304,7 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.ServerErrResponse(w, r, err)
 		return
 	}
-	valid, err := app.Cfg.OIDC.Google.Verify(JWT)
+	valid, nonce, err := app.Cfg.OIDC.Google.Verify(JWT)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -308,9 +313,18 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.BadReqResponse(w, r, errors.New("JWT is not valid"))
 		return
 	}
+	valid, err = app.VerifyOIDCNonce(tok, nonce)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	if !valid {
+		//TODO: chech if this resp is to detailed about showing nonce is invalid
+		app.BadReqResponse(w, r, errors.New("Invalid nonce"))
+		return
+	}
 
-	app.Logger.Info("Auth successful")
-	app.Logger.Info(JWT.Payload)
 	app.WriteJSON(w, http.StatusOK, application.Envelope{"data": JWT.Payload}, nil)
+
 	//TODO: check db if user present replace session else new user to
 }

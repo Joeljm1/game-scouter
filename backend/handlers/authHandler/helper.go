@@ -1,3 +1,6 @@
+// TODO: change error handling of this package to use custom error with
+// custom messgages to
+// TODO: Prolly cache sessions to
 package auth
 
 import (
@@ -53,6 +56,10 @@ func (app *AuthApplication) VerifyOIDCState(token, state string) (bool, error) {
 	return app.VerifyOIDCCode(token, key, state)
 }
 
+func (app *AuthApplication) SetOIDCNonce(token, state string) error {
+	key := app.Cfg.Auth.OIDCNonceKey
+	return app.SetOIDCVal(token, state, key)
+}
 func (app *AuthApplication) VerifyOIDCCode(token, key, code string) (bool, error) {
 	// Check if error returned is \[pgx.ErrNoRows]
 	codes, ok, err := app.Models.TokenModel.GetSessionVal(token, key)
@@ -68,11 +75,6 @@ func (app *AuthApplication) VerifyOIDCCode(token, key, code string) (bool, error
 		return false, ErrUnexpectedType
 	}
 	return slices.Contains(codesSlice, code), nil
-}
-
-func (app *AuthApplication) SetOIDCNonce(token, nonce string) error {
-	key := app.Cfg.Auth.OIDCNonceKey
-	return app.SetOIDCVal(token, nonce, key)
 }
 
 // NOTE: there might be a race condition in the nonce updating to db part but dk if it matters
@@ -92,7 +94,7 @@ func (app *AuthApplication) VerifyOIDCNonce(token, nonce string) (bool, error) {
 	}
 	nonces, ok := val.([]string)
 	if !ok {
-		return false, nil
+		return false, errors.New("value of nonces not []slice")
 	}
 	if !slices.Contains(nonces, nonce) {
 		return false, nil
