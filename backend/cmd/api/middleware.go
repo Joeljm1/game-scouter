@@ -162,18 +162,21 @@ func (app *serverApplication) CheckCustomHeader(next http.Handler) http.Handler 
 	})
 }
 
+// TODO: save token in context of req
 func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// not sure about below
+		// w.Header().Add("Cache-Control", `no-cache="Set-Cookie"`)
 		w.Header().Add("Vary", "Cookie")
 		cookie, err := r.Cookie(app.Cfg.SessionCookie)
 		if err != nil {
-			cookie, tok, err := app.AnonUserCookie()
+			cookie, tok, err := app.AnonUserCookie(r.Context())
 			if err != nil {
 				app.ServerErrResponse(w, r, err)
 				return
 			}
 			http.SetCookie(w, cookie)
-			req := app.SetUser(r, data.AnonymousUser(), tok.Plaintext)
+			req := app.SetUserDetailsToCtx(r, data.AnonymousUser(), tok.Plaintext, map[string]any{})
 			next.ServeHTTP(w, req)
 			return
 		}
@@ -184,7 +187,7 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 			app.ValidationErrResponse(w, r, v.Errors)
 			return
 		}
-		user, err := app.Models.UserModel.GetUserfromToken(r.Context(), token, data.ScopeAuthentication)
+		user, dataMap, err := app.Models.GetUserWithData(r.Context(), token)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRows):
@@ -198,8 +201,28 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 		if user.ID == 0 {
 			user = data.AnonymousUser()
 		}
-		req := app.SetUser(r, user, token)
+		req := app.SetUserDetailsToCtx(r, user, token, dataMap)
+		fmt.Println(dataMap)
 		next.ServeHTTP(w, req)
+		//TODO: remaining prolly have to use my custom respWriter
+
+		// check if written if yes then send to db
+		// if app.IsWritten(req) {
+		// 	//write to db
+		// 	app.Models.TokenModel.StoreSessionData(req.Context(),token,)
+		// }
+		m, _ := app.WrittenSess(req)
+
+		// if err != nil {
+		// 	app.Logger.Error("WrittensSess gave an error ", "error", err)
+		// 	return
+		// }
+		if m != nil {
+			err = app.Models.TokenModel.StoreSessionData(req.Context(), token, m)
+			if err != nil {
+				app.LogErr("err", r, err)
+			}
+		}
 	})
 }
 

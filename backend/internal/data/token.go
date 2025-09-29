@@ -1,13 +1,13 @@
 package data
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base32"
-	"encoding/gob"
 	"errors"
+	"game-scouter-api/internal/customErr"
+	"game-scouter-api/internal/helpers"
 	"game-scouter-api/internal/validator"
 	"time"
 
@@ -33,6 +33,7 @@ type TokenModel struct {
 	Pool *pgxpool.Pool
 }
 
+// WARN: Data initially nil
 func GenerateToken(userID int64, ttl time.Duration, scope string) (*Token, error) {
 	tok := &Token{
 		UserID: userID,
@@ -51,12 +52,12 @@ func GenerateToken(userID int64, ttl time.Duration, scope string) (*Token, error
 	return tok, nil
 }
 
-func (m *TokenModel) Insert(tok *Token) error {
+func (m *TokenModel) Insert(ctx context.Context, tok *Token) error {
 	query := `INSERT INTO token 
 	(user_id,hash,expiry,scope,data) 
 	VALUES($1,$2,$3,$4,$5)`
 	ars := []any{tok.UserID, tok.Hash, tok.Expiry, tok.Scope, tok.Data}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	_, err := m.Pool.Exec(ctx, query, ars...)
 	if err != nil {
@@ -66,10 +67,10 @@ func (m *TokenModel) Insert(tok *Token) error {
 }
 
 // check for [ErrNoRows] which is = [pgx.ErrNoRows]
-func (m *TokenModel) Update(tok *Token) error {
+func (m *TokenModel) Update(ctx context.Context, tok *Token) error {
 	query := `UPDATE token SET expiry=$1,data=$2 where hash=$3 `
 	args := []any{tok.Expiry, tok.Data, tok.Hash}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	cmdTag, err := m.Pool.Exec(ctx, query, args...)
 	if err != nil {
@@ -82,12 +83,12 @@ func (m *TokenModel) Update(tok *Token) error {
 }
 
 // Generated token and inserts it to db
-func (m *TokenModel) GenerateAndInsertToken(userID int64, ttl time.Duration, scope string) (*Token, error) {
+func (m *TokenModel) GenerateAndInsertToken(ctx context.Context, userID int64, ttl time.Duration, scope string) (*Token, error) {
 	tok, err := GenerateToken(userID, ttl, scope)
 	if err != nil {
 		return nil, err
 	}
-	err = m.Insert(tok)
+	err = m.Insert(ctx, tok)
 	return tok, err
 }
 
@@ -96,9 +97,9 @@ func ValidateToken(v *validator.Validator, token string) {
 	v.Assert(len(token) == 26, "tokenVal", "not valid")
 }
 
-func (m *TokenModel) DeleteAllToken(userID int64, scope string) error {
+func (m *TokenModel) DeleteAllToken(ctx context.Context, userID int64, scope string) error {
 	query := `DELETE FROM token WHERE user_id=$1 AND scope=$2`
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	_, err := m.Pool.Exec(ctx, query, userID, scope)
 	return err
@@ -119,10 +120,11 @@ func MatchPassword(plainText string, hash []byte) (bool, error) {
 
 // Check if error returned from this is [pgx.ErrNoRows]
 // Returns token struct if present
-func (m *TokenModel) GetTokenFromTokenStr(token string) (*Token, error) {
+// TODO: prolly delete this
+func (m *TokenModel) GetTokenFromTokenStr(ctx context.Context, token string) (*Token, error) {
 	hashArr := sha256.Sum256([]byte(token))
 	hash := hashArr[:]
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	query := `Select user_id,hash,expiry,scope,data from token where hash=$1`
 	tok := Token{}
@@ -136,46 +138,27 @@ func (m *TokenModel) GetTokenFromTokenStr(token string) (*Token, error) {
 	return &tok, err
 }
 
-// Check if error returned from this is [pgx.ErrNoRows] and [ErrConflictFound]
-func (m *TokenModel) StoreSessionVal(token, key string, val any) error {
-	tok, err := m.GetTokenFromTokenStr(token)
+// used to store session data into db and cache after req is over an is written
+func (m *TokenModel) StoreSessionData(ctx context.Context, token string, dataMap map[string]any) error {
+	b, err := helpers.SerializeGoB(dataMap)
 	if err != nil {
-		return err
-	}
-	dataMap := map[string]any{}
-	if len(tok.Data) > 0 {
-		dataReader := bytes.NewReader(tok.Data)
-		err = gob.NewDecoder(dataReader).Decode(&dataMap)
-		if err != nil {
-			return err
+		return customErr.Err{
+			Msg: "Error at store session data while serializing dataMap to gob",
+			Err: err,
 		}
 	}
-	dataMap[key] = val
-	buff := new(bytes.Buffer)
-	err = gob.NewEncoder(buff).Encode(dataMap)
+
+	hashArr := sha256.Sum256([]byte(token))
+	hash := hashArr[:]
+	query := `UPDATE token SET data=$1 where hash=$2 `
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+	cmdTag, err := m.Pool.Exec(ctx, query, b, hash)
 	if err != nil {
 		return err
 	}
-	tok.Data = buff.Bytes()
-	err = m.Update(tok)
-	return err
-}
-
-// Check if error returned is \[pgx.ErrNoRows]
-func (m *TokenModel) GetSessionVal(token string, key string) (any, bool, error) {
-	tok, err := m.GetTokenFromTokenStr(token)
-	if err != nil {
-		return nil, false, err
+	if cmdTag.RowsAffected() == 0 {
+		return ErrNoRows
 	}
-	dataMap := map[string]any{}
-	if len(tok.Data) == 0 {
-		return nil, false, nil
-	}
-	dataReader := bytes.NewReader(tok.Data)
-	err = gob.NewDecoder(dataReader).Decode(&dataMap)
-	if err != nil {
-		return nil, false, err
-	}
-	val, ok := dataMap[key]
-	return val, ok, nil
+	return nil
 }

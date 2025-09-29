@@ -68,7 +68,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		}
 		return
 	}
-	tok, err := app.Models.TokenModel.GenerateAndInsertToken(user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
+	tok, err := app.Models.TokenModel.GenerateAndInsertToken(r.Context(), user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
 	//NOTE: there was a print here  fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration) dk if it mattered or for debugging
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
@@ -113,7 +113,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		app.ValidationErrResponse(w, r, v.Errors)
 		return
 	}
-	user, err := app.Models.UserModel.GetUserfromToken(r.Context(), token, data.ScopeActivation)
+	user, _, err := app.Models.UserModel.GetUserfromTokenWithSess(r.Context(), token, data.ScopeActivation)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRows):
@@ -135,7 +135,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		}
 		return
 	}
-	err = app.Models.TokenModel.DeleteAllToken(user.ID, data.ScopeActivation)
+	err = app.Models.TokenModel.DeleteAllToken(r.Context(), user.ID, data.ScopeActivation)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -161,7 +161,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 	// ie if token created but template execution error then token is simply created
 	// or not 🙂
 
-	err = app.Login(w, user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration)
+	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -208,7 +208,7 @@ func (app *AuthApplication) LoginHandler(w http.ResponseWriter, r *http.Request)
 		app.LoginErr(w, r)
 		return
 	}
-	err = app.Login(w, user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration)
+	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -223,7 +223,7 @@ func (app *AuthApplication) getGoogleOidcUrlHandler(w http.ResponseWriter, r *ht
 	tok := app.GetTok(r)
 	state := app.CryptoRandomStr(16)
 	nonce := app.CryptoRandomStr(16)
-	err := app.SetOIDCState(tok, state)
+	err := app.SetOIDCState(r, tok, state)
 	if err != nil {
 		// switch {
 		// case errors.Is(err, pgx.ErrNoRows):
@@ -234,7 +234,7 @@ func (app *AuthApplication) getGoogleOidcUrlHandler(w http.ResponseWriter, r *ht
 		app.ServerErrResponse(w, r, err)
 		return
 	}
-	err = app.SetOIDCNonce(tok, nonce)
+	err = app.SetOIDCNonce(r, tok, nonce)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -261,9 +261,7 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.BadReqResponse(w, r, errors.New("missing code/state as URL param"))
 		return
 	}
-
-	tok := app.GetTok(r)
-	ok, err := app.VerifyOIDCState(tok, state)
+	ok, err := app.VerifyOIDCState(r, state)
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -313,7 +311,7 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.BadReqResponse(w, r, errors.New("JWT is not valid"))
 		return
 	}
-	valid, err = app.VerifyOIDCNonce(tok, nonce)
+	valid, err = app.VerifyOIDCNonce(r, nonce)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return

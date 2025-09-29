@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+//TODO: instead of just write do check session chamges and write to db if required and then send resp
+
 type MetricsResponseWriter struct {
 	http.ResponseWriter
 	Status        int

@@ -59,7 +59,6 @@ type Config struct {
 	Auth struct {
 		OIDCStateKey string
 		OIDCNonceKey string
-		CacheUser    data.CachedUser
 	}
 }
 
@@ -119,6 +118,8 @@ func (app *Application) ConfigureGoogle() error {
 	}
 	return nil
 }
+
+// Logger needs to initialized in app before calling this
 func (app *Application) Configure() error {
 	app.ConfigureHttp()
 	err := app.Cfg.Configure()
@@ -129,5 +130,6 @@ func (app *Application) Configure() error {
 	if err != nil {
 		return err
 	}
+	app.Logger.Info("Google OIDC discovery and config complete")
 	return nil
 }

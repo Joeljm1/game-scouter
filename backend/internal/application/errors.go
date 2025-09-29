@@ -12,6 +12,7 @@ func (app *Application) LogErr(msg string, r *http.Request, err error) {
 		slog.String("Path", r.URL.String()))
 }
 
+// would this cause a looop???
 func (app *Application) ErrResponse(w http.ResponseWriter, r *http.Request, status int, msg any) {
 	data := Envelope{"Error": msg}
 	err := app.WriteJSON(w, status, data, nil)

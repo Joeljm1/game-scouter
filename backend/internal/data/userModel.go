@@ -1,10 +1,11 @@
 package data
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/gob"
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgerrcode"
@@ -13,58 +14,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type CachedUser struct {
-	User     *User
-	lastUsed time.Time
-}
-
-type CashedSess struct {
-	Users map[string]*CachedUser
-	ttl   time.Duration
-	sync.RWMutex
-}
-
-func (cs *CashedSess) getUser(token string) (*User, bool) {
-	cs.RLock()
-	defer cs.RUnlock()
-	user, ok := cs.Users[token]
-	if !ok {
-		return nil, false
-	}
-	user.lastUsed = time.Now()
-	return user.User, true
-}
-
-func (cs *CashedSess) setUser(token string, user *User) {
-	cs.Lock()
-	defer cs.Unlock()
-	cs.Users[token] = &CachedUser{
-		User:     user,
-		lastUsed: time.Now(),
-	}
-}
-
-func (cs *CashedSess) clean(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Minute)
-	for {
-		select {
-		case <-ticker.C:
-			cs.Lock()
-			for token, cUsers := range cs.Users {
-				if time.Since(cUsers.lastUsed) > cs.ttl {
-					delete(cs.Users, token)
-				}
-			}
-			cs.Unlock()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 type UserModel struct {
-	Pool      *pgxpool.Pool
-	CacheSess *CashedSess
+	Pool *pgxpool.Pool
 }
 
 var (
@@ -132,15 +83,20 @@ func (m *UserModel) Update(ctx context.Context, user *User) error {
 	return nil
 }
 
-// NOTE: Token should not be hashed one just pllaintext
-func (m *UserModel) GetUserfromToken(ctx context.Context, token string, scope string) (*User, error) {
-	userFromCache, ok := m.CacheSess.getUser(token)
-	if ok {
-		return userFromCache, nil
-	}
+// NOTE: Token should not be hashed one just plaintext
+// NOTE: changin this need to check for errors
+// Gives token from db
+func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, scope string) (*User, map[string]any, error) {
+	// userFromCache, ok1 := m.CacheSess.getUser(token)
+	// dataFromCache, ok2 := m.CacheSess.getData(token)
+	// if ok1 && ok2 {
+	// 	return userFromCache, dataFromCache, nil
+	// }
 	hashArr := sha256.Sum256([]byte(token))
 	hash := hashArr[:]
-	query := `SELECT id,created_at,name,email,password_hash,activated,version
+	var data []byte
+
+	query := `SELECT id,created_at,name,email,password_hash,activated,version,data
 			FROM users JOIN token ON token.user_id=users.id WHERE token.hash=$1
 			AND token.scope=$2 AND token.expiry>$3`
 	timeNow := time.Now().UTC().Format("2006-01-02 15:04:05+00")
@@ -155,17 +111,27 @@ func (m *UserModel) GetUserfromToken(ctx context.Context, token string, scope st
 		&user.Password.Hash,
 		&user.Activated,
 		&user.Version,
+		&data,
 	)
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrNoRows
+			return nil, nil, ErrNoRows
 		default:
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	m.CacheSess.setUser(token, &user)
-	return &user, nil
+	// data could be nil so giveing default val
+	var dataMap = map[string]any{}
+	if len(data) != 0 {
+		dataReader := bytes.NewReader(data)
+		err = gob.NewDecoder(dataReader).Decode(&dataMap)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	// m.CacheSess.setUser(token, &user, dataMap)
+	return &user, dataMap, nil
 }
 func (m *UserModel) GetUserFromEmail(ctx context.Context, email string) (*User, error) {
 

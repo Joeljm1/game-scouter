@@ -1,15 +1,14 @@
 package application
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base32"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"game-scouter-api/internal/data"
+	"game-scouter-api/internal/helpers"
 	"io"
 	"log/slog"
 	"net/http"
@@ -146,16 +145,50 @@ var userKey = data.ContextKey("user")
 type UserVal struct {
 	User *data.User
 	Tok  string
+	Data *SessionData
 }
 
-// sets user and toekn val to context
-func (app *Application) SetUser(r *http.Request, user *data.User, tok string) *http.Request {
+type SessionData struct {
+	data    map[string]any
+	written bool
+}
+
+func (sd *SessionData) Set(key string, value any) {
+	if !sd.written {
+		sd.written = true
+	}
+	sd.data[key] = value
+}
+
+func (sd *SessionData) Remove(key string) {
+	if !sd.written {
+		sd.written = true
+	}
+	delete(sd.data, key)
+}
+
+func (sd *SessionData) Get(key string) (any, bool) {
+	val, ok := sd.data[key]
+	if !ok {
+		return nil, false
+	}
+	return val, true
+}
+
+// sets user,session data map and toekn val to context
+func (app *Application) SetUserDetailsToCtx(r *http.Request, user *data.User, tok string, data map[string]any) *http.Request {
 	if user == nil || tok == "" {
+		//TODO: prolly make this an error instead
 		panic("user is nill or token is empty")
 	}
-	setVal := UserVal{
+	// prolly better to use pointer here so that i can get the val from even if req is made to a new req in middlewares
+	setVal := &UserVal{
 		User: user,
 		Tok:  tok,
+		Data: &SessionData{
+			data:    data,
+			written: false,
+		},
 	}
 	ctx := context.WithValue(r.Context(), userKey, setVal)
 	req := r.WithContext(ctx)
@@ -163,7 +196,7 @@ func (app *Application) SetUser(r *http.Request, user *data.User, tok string) *h
 }
 
 func (app *Application) GetUser(r *http.Request) *data.User {
-	userVal, ok := r.Context().Value(userKey).(UserVal)
+	userVal, ok := r.Context().Value(userKey).(*UserVal)
 	if !ok || userVal.User == nil {
 		panic("User not found")
 	}
@@ -171,12 +204,33 @@ func (app *Application) GetUser(r *http.Request) *data.User {
 }
 
 func (app *Application) GetTok(r *http.Request) string {
-	userVal, ok := r.Context().Value(userKey).(UserVal)
+	userVal, ok := r.Context().Value(userKey).(*UserVal)
 	if !ok || userVal.Tok == "" {
 		panic("Token not found")
 	}
 	return userVal.Tok
 }
+
+func (app *Application) GetSessData(r *http.Request) *SessionData {
+	userVal, ok := r.Context().Value(userKey).(*UserVal)
+	if !ok || userVal.Tok == "" {
+		panic("Token not found")
+	}
+	return userVal.Data
+}
+
+// return nil if session was not written
+func (app *Application) WrittenSess(r *http.Request) (map[string]any, error) {
+	userVal, ok := r.Context().Value(userKey).(*UserVal)
+	if !ok || userVal.Tok == "" {
+		panic("Token not found")
+	}
+	if !userVal.Data.written {
+		return nil, nil
+	}
+	return userVal.Data.data, nil
+}
+
 func (app *Application) NewTokenCookie(token *data.Token, ttl time.Duration, name string) *http.Cookie {
 	cookie := http.Cookie{
 		Name:     name,
@@ -189,31 +243,13 @@ func (app *Application) NewTokenCookie(token *data.Token, ttl time.Duration, nam
 	}
 	return &cookie
 }
-func (app *Application) AnonUserCookie() (*http.Cookie, *data.Token, error) {
-	tok, err := app.Models.TokenModel.GenerateAndInsertToken(0, app.Cfg.TokenLife.AuthToken.LifeDuration, data.ScopeAuthentication)
+func (app *Application) AnonUserCookie(ctx context.Context) (*http.Cookie, *data.Token, error) {
+	tok, err := app.Models.TokenModel.GenerateAndInsertToken(ctx, 0, app.Cfg.TokenLife.AuthToken.LifeDuration, data.ScopeAuthentication)
 	if err != nil {
 		return nil, nil, err
 	}
 	cookie := app.NewTokenCookie(tok, app.Cfg.TokenLife.AuthToken.LifeDuration, app.Cfg.SessionCookie)
 	return cookie, tok, nil
-}
-
-// go data structure to []bytes
-func (app *Application) SerializeGoB(data any) ([]byte, error) {
-	buff := new(bytes.Buffer)
-	err := gob.NewEncoder(buff).Encode(data)
-	if err != nil {
-		return nil, err
-	}
-	return buff.Bytes(), nil
-}
-
-// []bytes to go data structure
-// dest should be pointer to the dat structure
-func (app *Application) DeserializeGoB(src []byte, dest any) error {
-	reader := bytes.NewReader(src)
-	err := gob.NewDecoder(reader).Decode(dest)
-	return err
 }
 
 // bits expects the no of bits of entropy
@@ -232,7 +268,7 @@ func (app *Application) GetSessDataMap(SessData []byte) (map[string]any, error) 
 		return map[string]any{}, nil
 	}
 	var tokData map[string]any
-	err := app.DeserializeGoB(SessData, &tokData)
+	err := helpers.DeserializeGoB(SessData, &tokData)
 	if err != nil {
 		return nil, err
 	}

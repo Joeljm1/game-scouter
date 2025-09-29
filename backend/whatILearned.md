@@ -1,0 +1,5 @@
+- session should be loaded from db and stored in req
+- session should be written to db after checking if there was any change made in req
+- session should be cached as it is expensive to call db
+- session should prolly be used with encrypted cookie store till size problem arises
+- pass context of req for every expensive/timetaking operation
