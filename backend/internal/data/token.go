@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"errors"
-	"game-scouter-api/internal/customErr"
 	"game-scouter-api/internal/helpers"
 	"game-scouter-api/internal/validator"
 	"time"
@@ -53,8 +52,8 @@ func GenerateToken(userID int64, ttl time.Duration, scope string) (*Token, error
 }
 
 func (m *TokenModel) Insert(ctx context.Context, tok *Token) error {
-	query := `INSERT INTO token 
-	(user_id,hash,expiry,scope,data) 
+	query := `INSERT INTO token
+	(user_id,hash,expiry,scope,data)
 	VALUES($1,$2,$3,$4,$5)`
 	ars := []any{tok.UserID, tok.Hash, tok.Expiry, tok.Scope, tok.Data}
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
@@ -142,7 +141,7 @@ func (m *TokenModel) GetTokenFromTokenStr(ctx context.Context, token string) (*T
 func (m *TokenModel) StoreSessionData(ctx context.Context, token string, dataMap map[string]any) error {
 	b, err := helpers.SerializeGoB(dataMap)
 	if err != nil {
-		return customErr.Err{
+		return helpers.Err{
 			Msg: "Error at store session data while serializing dataMap to gob",
 			Err: err,
 		}

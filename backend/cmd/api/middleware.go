@@ -178,6 +178,14 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 			http.SetCookie(w, cookie)
 			req := app.SetUserDetailsToCtx(r, data.AnonymousUser(), tok.Plaintext, map[string]any{})
 			next.ServeHTTP(w, req)
+			m, _ := app.WrittenSess(req)
+			if m != nil {
+				//TODO: may have race cond when same session write to same session togeather in same tab but low priority not sure if needed
+				err = app.Models.TokenModel.StoreSessionData(req.Context(), tok.Plaintext, m)
+				if err != nil {
+					app.LogErr("err", r, err)
+				}
+			}
 			return
 		}
 		token := cookie.Value
@@ -202,7 +210,6 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 			user = data.AnonymousUser()
 		}
 		req := app.SetUserDetailsToCtx(r, user, token, dataMap)
-		fmt.Println(dataMap)
 		next.ServeHTTP(w, req)
 		//TODO: remaining prolly have to use my custom respWriter
 
@@ -212,12 +219,12 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 		// 	app.Models.TokenModel.StoreSessionData(req.Context(),token,)
 		// }
 		m, _ := app.WrittenSess(req)
-
 		// if err != nil {
 		// 	app.Logger.Error("WrittensSess gave an error ", "error", err)
 		// 	return
 		// }
 		if m != nil {
+			//TODO: may have race cond when same session write to same session togeather in same tab but low priority not sure if needed
 			err = app.Models.TokenModel.StoreSessionData(req.Context(), token, m)
 			if err != nil {
 				app.LogErr("err", r, err)
@@ -229,7 +236,6 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 func (app *serverApplication) reqAuthUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.GetUser(r)
-		fmt.Println("Got user")
 		if user.IsAnonymous() {
 			app.NotAuthenticatedResponse(w, r)
 			return

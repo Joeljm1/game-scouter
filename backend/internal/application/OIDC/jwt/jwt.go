@@ -3,7 +3,7 @@ package jwt
 import (
 	"encoding/base64"
 	"encoding/json"
-	"game-scouter-api/internal/customErr"
+	"game-scouter-api/internal/helpers"
 	"strings"
 )
 
@@ -17,7 +17,7 @@ type JWT struct {
 func New(token string) (JWT, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return JWT{}, customErr.Err{
+		return JWT{}, helpers.Err{
 			Msg: "JWT token invalid format. Not 3 parts",
 			Err: nil,
 		}
@@ -32,7 +32,7 @@ func New(token string) (JWT, error) {
 func (j JWT) DecodedHeader() ([]byte, error) {
 	b, err := base64.RawURLEncoding.DecodeString(j.Header)
 	if err != nil {
-		return nil, customErr.Err{
+		return nil, helpers.Err{
 			Msg: "Error when decoding jwt header",
 			Err: err,
 		}
@@ -59,7 +59,7 @@ func (j JWT) ParseJWTHeader() (*JWTHeader, error) {
 func (j JWT) DecodedPayload() ([]byte, error) {
 	b, err := base64.RawURLEncoding.DecodeString(j.Payload)
 	if err != nil {
-		return nil, customErr.Err{
+		return nil, helpers.Err{
 			Msg: "Error when decoding jwt payload",
 			Err: err,
 		}
@@ -70,11 +70,10 @@ func (j JWT) DecodedPayload() ([]byte, error) {
 func (j JWT) DecodedSign() ([]byte, error) {
 	b, err := base64.RawURLEncoding.DecodeString(j.Signature)
 	if err != nil {
-		return nil, customErr.Err{
+		return nil, helpers.Err{
 			Msg: "Error when decoding jwt signature",
 			Err: err,
 		}
 	}
 	return b, nil
 }
-

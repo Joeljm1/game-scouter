@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"game-scouter-api/internal/application/OIDC/jwt"
-	"game-scouter-api/internal/customErr"
+	"game-scouter-api/internal/helpers"
 	"math/big"
 	"net/http"
 	"time"
@@ -161,7 +161,7 @@ func (g *Google) validPublicKey(kid string) (*rsa.PublicKey, error) {
 		}
 	}
 	// No public key with same kid found
-	return nil, customErr.Err{
+	return nil, helpers.Err{
 		Msg: "no valid public key found in google oidc for user jwt",
 		Err: errors.New("no valid public key found in google oidc for user jwt"),
 	}
@@ -169,7 +169,7 @@ func (g *Google) validPublicKey(kid string) (*rsa.PublicKey, error) {
 
 func (g Google) verifyRSA256(pk *rsa.PublicKey, header string, payload string, sig []byte) error {
 	if pk == nil {
-		return customErr.Err{
+		return helpers.Err{
 			Msg: "public key in verify RSA256 is nil",
 			Err: errors.New("public key in verify RSA256 is nil"),
 		}
@@ -181,7 +181,7 @@ func (g Google) verifyRSA256(pk *rsa.PublicKey, header string, payload string, s
 	err := rsa.VerifyPKCS1v15(pk, crypto.SHA256, hashSum, sig)
 	//not used currently
 	if err != nil {
-		return customErr.Err{
+		return helpers.Err{
 			Msg: "Error in verifyRSA256 for verifying rs256 of google oidc",
 			Err: err,
 		}
@@ -246,7 +246,7 @@ func (g Google) Verify(jwt jwt.JWT) (bool, string, error) {
 	}
 	//default is RSA256
 	if header.Alg != "RS256" && header.Alg != "" {
-		return false, "", customErr.Err{
+		return false, "", helpers.Err{
 			Msg: "Algorithm of jwt in oidc to google not rsa256",
 			Err: errors.New("algorithm of jwt in oidc to google not rsa256"),
 		}
@@ -273,7 +273,7 @@ func (g Google) Verify(jwt jwt.JWT) (bool, string, error) {
 	var gOIDCResp GoogleOIDCResp
 	err = json.NewDecoder(decPReader).Decode(&gOIDCResp)
 	if err != nil {
-		return false, "", customErr.Err{
+		return false, "", helpers.Err{
 			Msg: "Error decoding Payload to GoogleOIDCResp",
 			Err: err,
 		}

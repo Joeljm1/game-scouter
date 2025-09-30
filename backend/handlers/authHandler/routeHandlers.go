@@ -69,7 +69,6 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	tok, err := app.Models.TokenModel.GenerateAndInsertToken(r.Context(), user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
-	//NOTE: there was a print here  fmt.Println(app.Cfg.TokenLife.ActivateToken.LifeDuration) dk if it mattered or for debugging
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return

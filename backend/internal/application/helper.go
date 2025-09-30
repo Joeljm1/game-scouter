@@ -243,6 +243,8 @@ func (app *Application) NewTokenCookie(token *data.Token, ttl time.Duration, nam
 	}
 	return &cookie
 }
+
+// generated token and insterts it to db with user0 and return cookie
 func (app *Application) AnonUserCookie(ctx context.Context) (*http.Cookie, *data.Token, error) {
 	tok, err := app.Models.TokenModel.GenerateAndInsertToken(ctx, 0, app.Cfg.TokenLife.AuthToken.LifeDuration, data.ScopeAuthentication)
 	if err != nil {

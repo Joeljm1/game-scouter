@@ -1,4 +1,4 @@
-package customErr
+package helpers
 
 import "fmt"
 

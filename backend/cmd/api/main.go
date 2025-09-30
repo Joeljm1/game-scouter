@@ -58,7 +58,8 @@ func main() {
 	flag.IntVar(&cfg.Limiter.ShardNo, "shard", 8, "Number of shards for rate limiter")
 
 	// db
-	flag.StringVar(&cfg.DB.DSN, "db-dsn", os.Getenv("SCOUTER_DB_DSN"), "PostgreSQL DSN")
+	// flag.StringVar(&cfg.DB.DSN, "db-dsn", os.Getenv("SCOUTER_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.DB.DSN, "db-dsn", "postgres://scouter:pa55word@localhost/gamescouter?sslmode=disable", "PostgreSQL DSN")
 	flag.IntVar(&cfg.DB.MaxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	// flag.IntVar(&cfg.DB.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.DB.MaxIdleTIme, "db-max-idel-time", "15m", "PostgreSQL max connection idle time input in form 10s,10m etc")
@@ -79,8 +80,10 @@ func main() {
 
 	//Auth
 	flag.StringVar(&cfg.SessionCookie, "session-cookie", "SessionCookie", "Name of the session cookie")
-	flag.StringVar(&cfg.OIDC.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
-	flag.StringVar(&cfg.OIDC.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
+	// flag.StringVar(&cfg.OIDC.Google.ClientID, "google-outh-client-id", os.Getenv("ClientID"), "client id for google outh")
+	// flag.StringVar(&cfg.OIDC.Google.ClientSecret, "google-outh-client-secret", os.Getenv("ClientSecret"), "client secret for google outh")
+	flag.StringVar(&cfg.OIDC.Google.ClientID, "google-outh-client-id", "910004182414-m8ret44ge5jmrdlte6cl6oae9g3chcok.apps.googleusercontent.com", "client id for google outh")
+	flag.StringVar(&cfg.OIDC.Google.ClientSecret, "google-outh-client-secret", "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", "client secret for google outh")
 	flag.StringVar(&cfg.OIDC.Google.OIDCRedirectURL, "google-outh-redirect-url", "http://localhost:4000/auth/google/redirect", "client secret for google outh")
 
 	flag.StringVar(&cfg.Auth.OIDCStateKey, "OIDCStateKey", "OIDCState", "key for storing OIDC state for CSRF protection")

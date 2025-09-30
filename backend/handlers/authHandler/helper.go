@@ -45,6 +45,7 @@ func (app *AuthApplication) SetOIDCVal(r *http.Request, token, code, key string)
 	// }
 	// return nil
 	sess := app.GetSessData(r)
+
 	codes, ok := sess.Get(key)
 	var err error = nil
 	var codesSlice []string
@@ -56,8 +57,8 @@ func (app *AuthApplication) SetOIDCVal(r *http.Request, token, code, key string)
 			codesSlice = []string{}
 			err = ErrUnexpectedType
 		}
-		codesSlice = append(codesSlice, code)
 	}
+	codesSlice = append(codesSlice, code)
 	sess.Set(key, codesSlice)
 	return err
 }
@@ -97,7 +98,17 @@ func (app *AuthApplication) VerifyOIDCCode(r *http.Request, key, code string) (b
 		app.Logger.Error("Code is not slice")
 		return false, ErrUnexpectedType
 	}
-	return slices.Contains(codesSlice, code), nil
+	if !slices.Contains(codesSlice, code) {
+		return false, nil
+	}
+	newCodes := make([]string, 0, len(codesSlice)-1)
+	for i := range codesSlice {
+		if codesSlice[i] != code {
+			newCodes = append(newCodes, codesSlice[i])
+		}
+	}
+	sess.Set(key, newCodes)
+	return true, nil
 }
 
 func (app *AuthApplication) VerifyOIDCNonce(r *http.Request, nonce string) (bool, error) {
@@ -139,25 +150,6 @@ func (app *AuthApplication) VerifyOIDCNonce(r *http.Request, nonce string) (bool
 	// }
 	// return true, nil
 	key := app.Cfg.Auth.OIDCNonceKey
-	sess := app.GetSessData(r)
-	nonces, ok := sess.Get(key)
-	if !ok {
-		return false, nil
-	}
-	nonceSlice, ok := nonces.([]string)
-	if !ok {
-		app.Logger.Error("Code is not slice")
-		return false, ErrUnexpectedType
-	}
-	if !slices.Contains(nonceSlice, nonce) {
-		return false, nil
-	}
-	newNonce := make([]string, 0, len(nonceSlice)-1)
-	for i := range nonceSlice {
-		if nonceSlice[i] != nonce {
-			newNonce = append(newNonce, nonceSlice[i])
-		}
-	}
-	sess.Set(key, newNonce)
+	app.VerifyOIDCCode(r, key, nonce)
 	return true, nil
 }
