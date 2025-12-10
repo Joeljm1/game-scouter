@@ -62,13 +62,14 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		}
 		return
 	}
-	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration)
+	tok, err := app.Models.TokenModel.GenerateAndInsertToken(r.Context(), user.ID, data.ScopeActivation)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
 	tmplData := struct {
 		UserID int64
+		ActivationToken
 	}{
 		UserID: user.ID,
 	}
@@ -326,20 +327,22 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 			} else {
 				name = *payload.Name
 			}
-			//TODO:
 			user := data.User{
 				Name:      name,
 				Email:     *payload.Email,
 				Activated: false,
 			}
+			// [data.UserModel.InsertUser] not used here because we already know email is not there in table
+			// so no need to check again
 			err = app.Models.UserModel.Insert(r.Context(), &user)
+			//TODO:
 			if err != nil {
 				app.ServerErrResponse(w, r, err)
-				return
 			}
 		default:
 			app.ServerErrResponse(w, r, err)
 		}
+		return
 
 	}
 	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration)
