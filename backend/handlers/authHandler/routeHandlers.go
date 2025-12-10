@@ -6,7 +6,6 @@ package auth
 // response form email to react page instead of the tmpl one in ActivateUserHandler
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"game-scouter-api/internal/application"
@@ -62,16 +61,17 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		}
 		return
 	}
-	tok, err := app.Models.TokenModel.GenerateAndInsertToken(r.Context(), user.ID, data.ScopeActivation)
+	tok, err := app.Models.TokenModel.GenerateAndInsertToken(r.Context(), user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
 	tmplData := struct {
-		UserID int64
-		ActivationToken
+		UserID          int64
+		ActivationToken string
 	}{
-		UserID: user.ID,
+		UserID:          user.ID,
+		ActivationToken: tok.Plaintext,
 	}
 	app.Background(func() {
 		for i := range 3 {
@@ -138,13 +138,8 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 	// 	return
 	// }
 	// c := NewAuthTokenCookie(user.ID, authToken, app.Cfg.TokenLife.AuthToken.LifeDuration)
-	buff := new(bytes.Buffer)
-	tmplData := struct {
-		Name string
-	}{
-		Name: user.Name,
-	}
-	err = welcomeTmpl.ExecuteTemplate(buff, "welcome", tmplData)
+	//TODO: welcome mail???
+	buff, err := WelcomeHTML(user.Name)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -191,6 +186,7 @@ func (app *AuthApplication) LoginHandler(w http.ResponseWriter, r *http.Request)
 		}
 		return
 	}
+	//TODO: check for activation
 	match, err := data.MatchPassword(req.Password, user.Password.Hash)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
@@ -330,15 +326,21 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 			user := data.User{
 				Name:      name,
 				Email:     *payload.Email,
-				Activated: false,
+				Activated: false, // just to make it explicit so i dont forget later
 			}
 			// [data.UserModel.InsertUser] not used here because we already know email is not there in table
 			// so no need to check again
 			err = app.Models.UserModel.Insert(r.Context(), &user)
-			//TODO:
 			if err != nil {
 				app.ServerErrResponse(w, r, err)
 			}
+			buff, err := WelcomeHTML(name)
+			//TODO: welcome mail???
+			if err != nil {
+				app.ServerErrResponse(w, r, err)
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write(buff.Bytes())
 		default:
 			app.ServerErrResponse(w, r, err)
 		}

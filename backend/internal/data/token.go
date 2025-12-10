@@ -17,6 +17,7 @@ import (
 const (
 	ScopeActivation     = "Activation"
 	ScopeAuthentication = "Authentication"
+	ScopeOIDC           = "OIDC_Authentication"
 )
 
 type Token struct {
@@ -26,6 +27,7 @@ type Token struct {
 	Scope     string    `json:"scope"`
 	Expiry    time.Time `json:"expiry"`
 	Data      []byte    `json:"-"`
+	//TODO: add auth type to may be in scope??
 }
 
 type TokenModel struct {

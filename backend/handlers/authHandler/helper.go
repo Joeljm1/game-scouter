@@ -4,6 +4,7 @@
 package auth
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"slices"
@@ -98,4 +99,20 @@ func (app *AuthApplication) VerifyOIDCNonceAndEmail(r *http.Request, nonce *stri
 		return false, nil
 	}
 	return app.VerifyOIDCCode(r, key, *nonce)
+}
+
+func WelcomeHTML(name string) (*bytes.Buffer, error) {
+
+	buff := new(bytes.Buffer)
+	tmplData := struct {
+		Name string
+	}{
+		Name: name,
+	}
+	err := welcomeTmpl.ExecuteTemplate(buff, "welcome", tmplData)
+	if err != nil {
+		return nil, err
+	}
+	return buff, err
+
 }

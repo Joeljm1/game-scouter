@@ -4,5 +4,5 @@ CREATE TABLE token (
 	expiry timestamp(0) with time zone NOT NULL,
 	scope text NOT NULL,
 	data bytea,
-  --TODO: Add column for is Email type or not
+  --TODO: Add column for is Email type or not or may be as a scope??
 )

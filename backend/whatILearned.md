@@ -1,6 +1,12 @@
-- session should be loaded from db and stored in req
+- ratelimiting using token bucker algorithm
+- session should be loaded from db and stored in request context 
 - session should be written to db after checking if there was any change made in req at end of req only
 - session should be cached as it is expensive to call db
 - session should prolly be used with encrypted cookie store till size problem arises
-- pass context of req for every expensive/timetaking operation
+- pass context of req for every go routine if life of that goroutine is tied to the request
+- There will be lots of rewrites
+- So really plan what all u want to add before starting to make it easier
+    - Ex: i first planned in login with mail only later thought of OIDC now i have many problems due to the invalidation of various assumptions like every user has password and all so had to refactor a lot
+- OIDC is not hard to do if everyone followed the protocol unlike github
+    - not sure if github one is bad though as it is easier to implement individually than oidc protocol
 
