@@ -7,6 +7,7 @@ import (
 
 func (app *serverApplication) healthCheck(w http.ResponseWriter, r *http.Request) {
 	data := application.Envelope{
+
 		"Status": "Available",
 		"ApiInfo": map[string]string{
 			"Version":     version,

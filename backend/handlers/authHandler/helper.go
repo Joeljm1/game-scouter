@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strings"
 )
 
 var ErrUnexpectedType = errors.New("unexpexted type")
@@ -15,35 +16,6 @@ const OIDCURL = "https://accounts.google.com/o/oauth2/v2/auth?client_id=%v&respo
 
 // TODO: Add like a limit like 10 and then remove oldest ones
 func (app *AuthApplication) SetOIDCVal(r *http.Request, token, code, key string) error {
-	// tok, err := app.Models.TokenModel.GetTokenFromTokenStr(ctx, token)
-	// if err != nil {
-	// 	return err
-	// }
-	// tokData, err := app.GetSessDataMap(tok.Data)
-	// if err != nil {
-	// 	return err
-	// }
-	// val, ok := tokData[key]
-	// if !ok {
-	// 	tokData[key] = []string{code}
-	// } else {
-	// 	codes, ok := val.([]string)
-	// 	if !ok {
-	// 		return ErrUnexpectedType
-	// 	}
-	// 	codes = append(codes, code)
-	// 	tokData[key] = codes
-	// }
-	// byteData, err := helpers.SerializeGoB(tokData)
-	// if err != nil {
-	// 	return err
-	// }
-	// tok.Data = byteData
-	// err = app.Models.TokenModel.Update(ctx, tok)
-	// if err != nil {
-	// 	return err
-	// }
-	// return nil
 	sess := app.GetSessData(r)
 
 	codes, ok := sess.Get(key)
@@ -102,6 +74,7 @@ func (app *AuthApplication) VerifyOIDCCode(r *http.Request, key, code string) (b
 		return false, nil
 	}
 	newCodes := make([]string, 0, len(codesSlice)-1)
+	// remove used nonce to prevent double login attack or smthing like that forgot attack name
 	for i := range codesSlice {
 		if codesSlice[i] != code {
 			newCodes = append(newCodes, codesSlice[i])
@@ -111,45 +84,18 @@ func (app *AuthApplication) VerifyOIDCCode(r *http.Request, key, code string) (b
 	return true, nil
 }
 
-func (app *AuthApplication) VerifyOIDCNonce(r *http.Request, nonce string) (bool, error) {
-	// key := app.Cfg.Auth.OIDCNonceKey
-	// tok, err := app.Models.TokenModel.GetTokenFromTokenStr(ctx, token)
-	// if err != nil {
-	// 	return false, err
-	// }
-	// dataMap, err := app.GetSessDataMap(tok.Data)
-	// if err != nil {
-	// 	return false, err
-	// }
-	// val, ok := dataMap[key]
-	// if !ok {
-	// 	return false, nil
-	// }
-	// nonces, ok := val.([]string)
-	// if !ok {
-	// 	return false, errors.New("value of nonces not []slice")
-	// }
-	// if !slices.Contains(nonces, nonce) {
-	// 	return false, nil
-	// }
-	// newNonce := make([]string, 0, len(nonces)-1)
-	// for i := range nonces {
-	// 	if nonces[i] != nonce {
-	// 		newNonce = append(newNonce, nonces[i])
-	// 	}
-	// }
-	// dataMap[key] = newNonce
-	// tokDat, err := helpers.SerializeGoB(dataMap)
-	// if err != nil {
-	// 	return false, err
-	// }
-	// tok.Data = tokDat
-	// err = app.Models.TokenModel.Update(ctx, tok)
-	// if err != nil {
-	// 	return false, err
-	// }
-	// return true, nil
+var ErrEmailInvalid = errors.New("Invalid email")
+
+// verifies nonce and checks if nonce is no
+func (app *AuthApplication) VerifyOIDCNonceAndEmail(r *http.Request, nonce *string, email *string, verified *bool) (bool, error) {
+
+	if email == nil || strings.TrimSpace(*email) == "" || verified == nil || !*verified {
+		// OIDC supposed to give oidc but just in case
+		return false, ErrEmailInvalid
+	}
 	key := app.Cfg.Auth.OIDCNonceKey
-	app.VerifyOIDCCode(r, key, nonce)
-	return true, nil
+	if nonce == nil {
+		return false, nil
+	}
+	return app.VerifyOIDCCode(r, key, *nonce)
 }

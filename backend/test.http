@@ -1,0 +1,4 @@
+### 
+
+GET http://localhost:4000/auth/google/oidcURL HTTP/1.1
+Cookie: SessionCookie=OYWWQH4TT7XFRY4KR5PGG4RDXA

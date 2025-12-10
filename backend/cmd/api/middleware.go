@@ -120,6 +120,8 @@ func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 //			next.ServeHTTP(w, r)
 //		})
 //	}
+
+// TODO: check if Access-Control-Max-Age will not cause csrf attack or smthing
 func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Origin")
@@ -133,6 +135,7 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" { // if preflight request
 					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Hi-From-Frontend") // add more if needed
+					w.Header().Set("Access-Control-Max-Age", "86400")
 					w.WriteHeader(http.StatusNoContent)
 					return
 				}
@@ -144,6 +147,8 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 
 // NOTE: Used to prevent csrf attack for endpoints that cause changes
 // as session cookie is of type SameSiteNone mode due to sep frontend and backend
+// look into may be checking Sec-Fetch-Site and Orgin headers to for modern browsers like stdlib does it
+// this method is from [https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#employing-custom-request-headers-for-ajaxapi]
 func (app *serverApplication) CheckCustomHeader(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -244,6 +249,7 @@ func (app *serverApplication) reqAuthUser(next http.Handler) http.Handler {
 	})
 }
 
+// Use it for endpoints that require authenticated user
 // Will check if user is authenticated to. No need to double check it
 func (app *serverApplication) reqActivatedUser(next http.Handler) http.Handler {
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -257,6 +263,7 @@ func (app *serverApplication) reqActivatedUser(next http.Handler) http.Handler {
 	return app.reqAuthUser(fn)
 }
 
+// NOTE: is this needed???
 func (app *serverApplication) PassLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := jsonlog.SetLogger(r, app.Logger)

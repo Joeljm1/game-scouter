@@ -45,7 +45,7 @@ func (app *serverApplication) run() error {
 
 	err := server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		return nil
+		return err
 	}
 	err = <-shutDown
 	if err != nil {

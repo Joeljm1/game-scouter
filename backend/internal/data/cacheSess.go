@@ -1,3 +1,5 @@
+// WARN: Prolly need to use atomic.Int instead of lock for [CachedUser.lastUsed]
+// need to profile then to
 package data
 
 import (
@@ -15,10 +17,11 @@ type CachedUser struct {
 func NewCache(ttl time.Duration) *CachedSess {
 	return &CachedSess{
 		users: map[string]*CachedUser{},
-		ttl:   5 * ttl,
+		ttl:   ttl,
 	}
 }
 
+// NOTE: Not sure if mutex lock should be promted with embeddeding.
 type CachedSess struct {
 	users map[string]*CachedUser
 	ttl   time.Duration
@@ -32,6 +35,7 @@ func (cs *CachedSess) getUser(token string) (*User, bool) {
 	if !ok {
 		return nil, false
 	}
+	//WARN: Race cond
 	user.lastUsed = time.Now()
 	return user.User, true
 }
@@ -44,6 +48,7 @@ func (cs *CachedSess) getData(token string) (map[string]any, bool) {
 	if !ok {
 		return nil, false
 	}
+	//WARN: Race cond
 	cUser.lastUsed = time.Now()
 	return cUser.Data, true
 }
@@ -56,6 +61,7 @@ func (cs *CachedSess) getUserAndData(token string) (*User, map[string]any, bool)
 	if !ok {
 		return nil, nil, false
 	}
+	//WARN: Race cond
 	cUser.lastUsed = time.Now()
 	return cUser.User, cUser.Data, true
 }

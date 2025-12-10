@@ -154,6 +154,7 @@ func (g *Google) Configure(client *http.Client) error {
 	return nil
 }
 
+// get public key of given kid
 func (g *Google) validPublicKey(kid string) (*rsa.PublicKey, error) {
 	for _, j := range g.JWKS.Keys {
 		if j.Kid == kid {
@@ -167,26 +168,49 @@ func (g *Google) validPublicKey(kid string) (*rsa.PublicKey, error) {
 	}
 }
 
-func (g Google) verifyRSA256(pk *rsa.PublicKey, header string, payload string, sig []byte) error {
+// func (g Google) verifyRSA256(pk *rsa.PublicKey, header string, payload string, sig []byte) error {
+// 	if pk == nil {
+// 		return helpers.Err{
+// 			Msg: "public key in verify RSA256 is nil",
+// 			Err: errors.New("public key in verify RSA256 is nil"),
+// 		}
+// 	}
+// 	sigInp := header + "." + payload
+// 	hash := sha256.New()
+// 	hash.Write([]byte(sigInp))
+// 	hashSum := hash.Sum(nil)
+// 	err := rsa.VerifyPKCS1v15(pk, crypto.SHA256, hashSum, sig)
+// 	//not used currently
+// 	if err != nil {
+// 		return helpers.Err{
+// 			Msg: "Error in verifyRSA256 for verifying rs256 of google oidc",
+// 			Err: err,
+// 		}
+// 	}
+// 	return nil
+// }
+
+func (g Google) verifyRSA256(pk *rsa.PublicKey, jwt jwt.JWT) (bool, error) {
 	if pk == nil {
-		return helpers.Err{
+		return false, helpers.Err{
 			Msg: "public key in verify RSA256 is nil",
 			Err: errors.New("public key in verify RSA256 is nil"),
 		}
 	}
-	sigInp := header + "." + payload
+	sig, err := jwt.DecodedSign()
+	if err != nil {
+		return false, err
+	}
+	sigInp := jwt.Header + "." + jwt.Payload
 	hash := sha256.New()
 	hash.Write([]byte(sigInp))
 	hashSum := hash.Sum(nil)
-	err := rsa.VerifyPKCS1v15(pk, crypto.SHA256, hashSum, sig)
+	err = rsa.VerifyPKCS1v15(pk, crypto.SHA256, hashSum, sig)
 	//not used currently
 	if err != nil {
-		return helpers.Err{
-			Msg: "Error in verifyRSA256 for verifying rs256 of google oidc",
-			Err: err,
-		}
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 type GoogleOIDCResp struct {
@@ -218,75 +242,76 @@ func (g Google) VerifyPayload(gResp GoogleOIDCResp) error {
 	}
 	if gResp.Iss != g.DocumentDiscovery.Issuer {
 		return ReqError{
-			Msg: "Issuer of payload is not same",
-			Err: errors.New("Issuer of payload is not same"),
+			Msg: "issuer of payload is not same",
+			Err: errors.New("issuer of payload is not same"),
 		}
 	}
 	if gResp.Aud != g.ClientID {
 		return ReqError{
-			Msg: "Aud of payload is not same as clientID",
-			Err: errors.New("Aud of payload is not same as clientID"),
+			Msg: "aud of payload is not same as clientID",
+			Err: errors.New("aud of payload is not same as clientID"),
 		}
 	}
 	t := time.Unix(gResp.Exp, 0)
 	if time.Since(t) > 0 {
 		return ReqError{
-			Msg: "Token expired",
-			Err: errors.New("Token expired"),
+			Msg: "token expired",
+			Err: errors.New("token expired"),
 		}
 	}
 	return nil
 }
 
-// Verifies the jwt and return nonce as string to for verifying
-func (g Google) Verify(jwt jwt.JWT) (bool, string, error) {
+// Verifies the jwt and return  decoded payload with nonce in it to for verifying and also rest of payloadnonce
+//
+// Nonce is verified to be not nil
+func (g Google) Verify(jwt jwt.JWT) (bool, *GoogleOIDCResp, error) {
 	header, err := jwt.ParseJWTHeader()
 	if err != nil {
-		return false, "", err
+		return false, nil, err
 	}
-	//default is RSA256
+	//default is RSA256 for google
 	if header.Alg != "RS256" && header.Alg != "" {
-		return false, "", helpers.Err{
+		return false, nil, helpers.Err{
 			Msg: "Algorithm of jwt in oidc to google not rsa256",
 			Err: errors.New("algorithm of jwt in oidc to google not rsa256"),
 		}
 	}
 	pk, err := g.validPublicKey(header.Kid)
 	if err != nil {
-		return false, "", err
-	}
-	ds, err := jwt.DecodedSign()
-	if err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 	// OIDC tells its optional if got directly from provider but i did it
 	// may be no need of verify??
-	err = g.verifyRSA256(pk, jwt.Header, jwt.Payload, ds)
+	ok, err := g.verifyRSA256(pk, jwt)
 	if err != nil {
-		return false, "", nil
+		return false, nil, err
+	}
+	if !ok {
+		return false, nil, nil
 	}
 	decP, err := jwt.DecodedPayload()
 	if err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 	decPReader := bytes.NewReader(decP)
 	var gOIDCResp GoogleOIDCResp
 	err = json.NewDecoder(decPReader).Decode(&gOIDCResp)
 	if err != nil {
-		return false, "", helpers.Err{
+		return false, nil, helpers.Err{
 			Msg: "Error decoding Payload to GoogleOIDCResp",
 			Err: err,
 		}
 	}
 	err = g.VerifyPayload(gOIDCResp)
 	if err != nil {
-		return false, "", err
+		return false, nil, err
 	}
 	if gOIDCResp.Nonce == nil {
-		return false, "", ReqError{
+		return false, nil, ReqError{
 			Msg: "Nonce is missing",
 			Err: errors.New("Nonce is missing"),
 		}
 	}
-	return true, *gOIDCResp.Nonce, nil
+	return true, &gOIDCResp, nil
 }

@@ -15,7 +15,7 @@ import (
 )
 
 type Config struct {
-	Ctx       context.Context
+	Ctx       context.Context // for global context to share
 	CtxCancel context.CancelFunc
 	Port      int
 	Env       string
@@ -44,7 +44,7 @@ type Config struct {
 		DSN          string
 		MaxOpenConns int
 		// MaxIdleConns int
-		MaxIdleTIme string
+		MaxIdleTime string
 	}
 	SMTP struct {
 		Host     string

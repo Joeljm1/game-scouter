@@ -2,10 +2,6 @@ package auth
 
 //TODO: when frontend created redirect to home page
 
-//TODO: restructuring of ActivateUserHandler as the order does not seem to be valid
-// ie if token created but template execution error then token is simply created
-// or not 🙂
-
 // TODO: After making react appp may be change the
 // response form email to react page instead of the tmpl one in ActivateUserHandler
 
@@ -276,6 +272,7 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		return
 	}
 
+	// send data to google enpoint and get jwt
 	tokenUrl := app.Cfg.OIDC.Google.DocumentDiscovery.TokenEndpoint
 	query := url.Values{}
 	query.Set("code", code)
@@ -289,7 +286,6 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.ServerErrResponse(w, r, err)
 		return
 	}
-
 	defer resp.Body.Close()
 	oResp, err := oidc.NewResp(resp.Body)
 	if err != nil {
@@ -301,7 +297,7 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.ServerErrResponse(w, r, err)
 		return
 	}
-	valid, nonce, err := app.Cfg.OIDC.Google.Verify(JWT)
+	valid, payload, err := app.Cfg.OIDC.Google.Verify(JWT)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -310,18 +306,30 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		app.BadReqResponse(w, r, errors.New("JWT is not valid"))
 		return
 	}
-	valid, err = app.VerifyOIDCNonce(r, nonce)
+	valid, err = app.VerifyOIDCNonceAndEmail(r, payload.Nonce, payload.Email, payload.Email_verified)
 	if err != nil {
-		app.ServerErrResponse(w, r, err)
+		switch {
+		case errors.Is(err, ErrEmailInvalid):
+			app.BadReqResponse(w, r, errors.New("invalid/unverified email"))
+		default:
+			app.ServerErrResponse(w, r, err)
+		}
 		return
 	}
 	if !valid {
-		//TODO: chech if this resp is to detailed about showing nonce is invalid
-		app.BadReqResponse(w, r, errors.New("Invalid nonce"))
+		app.BadReqResponse(w, r, errors.New("invalid request"))
 		return
 	}
+	user, err := app.Models.UserModel.GetUserFromEmail(r.Context(), *payload.Email)
+	if err != nil { // no user with that
+		switch {
+		case errors.Is(err, data.ErrNoRows):
+		//TODO:
 
-	app.WriteJSON(w, http.StatusOK, application.Envelope{"data": JWT.Payload}, nil)
+		default:
+			app.ServerErrResponse(w, r, err)
+		}
 
-	//TODO: check db if user present replace session else new user to
+	}
+
 }

@@ -26,6 +26,7 @@ func ValidateEmail(v *validator.Validator, email string) {
 }
 
 // NOTE: Did password as sep arg to avoid hashing and then checking
+// ie if err in email or name then avoid wasting cpu on hashing
 func (user *User) Validate(v *validator.Validator, password string) {
 	ValidateName(v, user.Name)
 	ValidateEmail(v, user.Email)

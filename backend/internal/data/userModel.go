@@ -24,6 +24,8 @@ var (
 	ErrNoRows          = pgx.ErrNoRows
 )
 
+// Inserts User to db
+//
 // Insert check for [ErrUniqueViolation] as error after inserting
 func (m *UserModel) Insert(ctx context.Context, user *User) error {
 	query := `INSERT INTO users
@@ -52,6 +54,17 @@ func (m *UserModel) Insert(ctx context.Context, user *User) error {
 	}
 	return nil
 }
+
+// func (m *UserModel) InsertUser(ctx context.Context, user *User) error {
+// 	userFromDb, err := m.GetUserFromEmail(ctx, user.Email)
+// 	if err != nil {
+// 		if errors.Is(err, ErrNoRows) {
+// 			return m.Insert(ctx, user)
+// 		}
+// 		return err
+// 	}
+// 	if userFromDb.Password
+// }
 
 func (m *UserModel) Update(ctx context.Context, user *User) error {
 	query := `UPDATE users SET
@@ -133,6 +146,8 @@ func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, 
 	// m.CacheSess.setUser(token, &user, dataMap)
 	return &user, dataMap, nil
 }
+
+// return [ErrNoRows] if no users
 func (m *UserModel) GetUserFromEmail(ctx context.Context, email string) (*User, error) {
 
 	query := `SELECT id,created_at,name,email,password_hash,activated,version

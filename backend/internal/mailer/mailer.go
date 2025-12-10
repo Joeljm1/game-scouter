@@ -42,7 +42,8 @@ func New(host, username, password, sender string, port int) (*Mailer, error) {
 
 // Do this fn in background when used as it might block for sending
 // also do retrying like 3 times if failed to send
-// data rn has activationToken and userID
+// WARN:  data rn has activationToken and userID
+// also pass context to it??
 func (m *Mailer) Send(to string, data any) error {
 	// Do once and is cached for later use
 	// Im doing thos cause i think parsing templates in expensive

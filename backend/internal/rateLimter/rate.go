@@ -20,6 +20,7 @@ type Limiter struct {
 
 func New(burst int, rate float64) *Limiter {
 	if burst < 0 || rate < 0 {
+		//WARN: Panic used but i think this is fine
 		panic("burst/rate is negative")
 	}
 	return &Limiter{
