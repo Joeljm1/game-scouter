@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
     name text NOT NULL,
     email citext UNIQUE NOT NULL,
-    password_hash bytea NOT NULL,
+    password_hash bytea NOT NULL, -- changed to nullable later due ot oidc
     activated bool NOT NULL,
     version integer NOT NULL DEFAULT 1
 );

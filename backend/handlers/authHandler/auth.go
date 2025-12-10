@@ -14,7 +14,8 @@ type AuthApplication struct {
 	*application.Application
 }
 
-// Generates token for the user, stored it in db and adds a cookie to responseWriter
+// Generates token for the user, stored it in db and adds a cookie to responseWriter.
+// ttl is for token in browser
 func (app *AuthApplication) Login(ctx context.Context, w http.ResponseWriter, userID int64, ttl time.Duration) error {
 	token, err := app.Models.TokenModel.GenerateAndInsertToken(ctx, userID, ttl, data.ScopeAuthentication)
 	if err != nil {

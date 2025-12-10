@@ -1,5 +1,5 @@
 # TODO
-1) [ ] Session lazy saving (save data only when session data is edited)
+1) [X] Session lazy saving (save data only when session data is edited)
 2)  [ ] maybe jwt for before login??
 3) [X] clear cache val after some time and be concurrent safe
 4) [ ] Fix error handling of old code ie use custom error types
@@ -9,3 +9,10 @@
 8) [ ] add session data to context only when required (lazy loading)
 
 
+# Passsword changes to all oidc
+
+1) [X] Make password a *string
+2) [X] Make password a nullable in table
+3) [X] Make it compile
+4) [ ] Check for security issues
+5) [ ] Changes to token table to add type of auth done so that i can check activated user field only if token type is email

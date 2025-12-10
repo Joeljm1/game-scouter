@@ -22,6 +22,7 @@ var (
 	ErrUniqueViolation = errors.New("unique key violation found")
 	ErrConflictFound   = errors.New("conflict found")
 	ErrNoRows          = pgx.ErrNoRows
+	ErrUserExists      = errors.New("user already exists")
 )
 
 // Inserts User to db
@@ -55,16 +56,21 @@ func (m *UserModel) Insert(ctx context.Context, user *User) error {
 	return nil
 }
 
-// func (m *UserModel) InsertUser(ctx context.Context, user *User) error {
-// 	userFromDb, err := m.GetUserFromEmail(ctx, user.Email)
-// 	if err != nil {
-// 		if errors.Is(err, ErrNoRows) {
-// 			return m.Insert(ctx, user)
-// 		}
-// 		return err
-// 	}
-// 	if userFromDb.Password
-// }
+// created new user if oidc not done before or sets password if oidc was done before
+func (m *UserModel) InsertUser(ctx context.Context, user *User) error {
+	userFromDb, err := m.GetUserFromEmail(ctx, user.Email)
+	if err != nil {
+		if errors.Is(err, ErrNoRows) {
+			return m.Insert(ctx, user)
+		}
+		return err
+	}
+	if userFromDb.Password.Hash == nil { // only logged in with oidc before
+		err = m.Update(ctx, user)
+		return err
+	}
+	return ErrUserExists
+}
 
 func (m *UserModel) Update(ctx context.Context, user *User) error {
 	query := `UPDATE users SET
@@ -148,8 +154,8 @@ func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, 
 }
 
 // return [ErrNoRows] if no users
+// if user.Password.Hash then user logged in with oidc but nat with email
 func (m *UserModel) GetUserFromEmail(ctx context.Context, email string) (*User, error) {
-
 	query := `SELECT id,created_at,name,email,password_hash,activated,version
 			FROM users where email=$1`
 	var user User

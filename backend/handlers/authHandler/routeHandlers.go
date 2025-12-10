@@ -45,18 +45,16 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 	}
 	psswd := data.Password{}
 	err = psswd.SetHash(req.Password)
-	if psswd.Hash == nil {
-		panic("Hash not set")
-	}
-	if err != nil {
+	if err != nil || psswd.Hash == nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
 	user.Password = psswd
-	err = app.Models.UserModel.Insert(r.Context(), &user)
+	err = app.Models.UserModel.InsertUser(r.Context(), &user)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrUniqueViolation):
+		// dont think [data.ErrUniqueViolation] will ever come may remove it later after checking
+		case errors.Is(err, data.ErrUniqueViolation), errors.Is(err, data.ErrUserExists):
 			v.AddError("email", "already exists")
 			app.ValidationErrResponse(w, r, v.Errors)
 		default:
@@ -64,17 +62,15 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		}
 		return
 	}
-	tok, err := app.Models.TokenModel.GenerateAndInsertToken(r.Context(), user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration, data.ScopeActivation)
+	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
 	}
 	tmplData := struct {
-		UserID          int64
-		ActivationToken string
+		UserID int64
 	}{
-		UserID:          user.ID,
-		ActivationToken: tok.Plaintext,
+		UserID: user.ID,
 	}
 	app.Background(func() {
 		for i := range 3 {
@@ -324,12 +320,33 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 	if err != nil { // no user with that
 		switch {
 		case errors.Is(err, data.ErrNoRows):
-		//TODO:
-
+			var name string
+			if payload.Name == nil {
+				name = ""
+			} else {
+				name = *payload.Name
+			}
+			//TODO:
+			user := data.User{
+				Name:      name,
+				Email:     *payload.Email,
+				Activated: false,
+			}
+			err = app.Models.UserModel.Insert(r.Context(), &user)
+			if err != nil {
+				app.ServerErrResponse(w, r, err)
+				return
+			}
 		default:
 			app.ServerErrResponse(w, r, err)
 		}
 
 	}
-
+	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration)
+	if err != nil {
+		app.ServerErrResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("This is homepage"))
 }
