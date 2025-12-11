@@ -7,6 +7,8 @@
 6) [X] Add context to all db operation from request
 7) [ ] session orginal method not great, change it and cache it 
 8) [ ] add session data to context only when required (lazy loading)
+9) [ ] *Buffered loggin would be great*
+10) [ ] Clean old token data and old session data for a user ( may be do them in db layer??)
 
 
 # Passsword changes to all oidc

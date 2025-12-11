@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"game-scouter-api/internal/application"
 	"log/slog"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 )
@@ -12,9 +13,9 @@ const version = "1.0.0"
 
 func main() {
 	// uncomment below code when wanting pprof
-	// go func() {
-	// 	http.ListenAndServe("localhost:6060", nil)
-	// }()
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
 	app := application.App()
 	err := app.Configure()
 	if err != nil {

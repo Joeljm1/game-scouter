@@ -32,15 +32,15 @@ func NewModels(pool *pgxpool.Pool, ctx context.Context) Models {
 }
 
 // error can be [ErrNoRows]
-func (m Models) GetUserWithData(ctx context.Context, tok string) (*User, map[string]any, error) {
-	user, dataMap, ok := m.CacheSess.getUserAndData(tok)
+func (m Models) GetUserWithData(ctx context.Context, tok string) (*User, map[string]any, Scope, error) {
+	user, dataMap, scope, ok := m.CacheSess.getUserAndData(tok)
 	if ok {
-		return user, dataMap, nil
+		return user, dataMap, scope, nil
 	}
-	user, dataMap, err := m.UserModel.GetUserfromTokenWithSess(ctx, tok, ScopeAuthentication)
+	user, dataMap, scope, err := m.UserModel.GetUserfromTokenWithSess(ctx, tok)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, ScopeUnknown, err
 	}
-	m.CacheSess.setUser(tok, user, dataMap)
-	return user, dataMap, nil
+	m.CacheSess.setUser(tok, user, dataMap, scope)
+	return user, dataMap, scope, nil
 }

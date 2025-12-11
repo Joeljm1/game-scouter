@@ -97,7 +97,7 @@ func App() *Application {
 
 	app := &Application{
 		Cfg:    &cfg,
-		Logger: jsonlog.New(os.Stdout),
+		Logger: jsonlog.New(os.Stdin),
 	}
 	return app
 }

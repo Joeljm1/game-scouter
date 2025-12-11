@@ -104,8 +104,8 @@ func (m *UserModel) Update(ctx context.Context, user *User) error {
 
 // NOTE: Token should not be hashed one just plaintext
 // NOTE: changin this need to check for errors
-// Gives token from db
-func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, scope string) (*User, map[string]any, error) {
+// verify scope if needed (Ex scope for activation handler should only be activation and error on other)
+func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string) (*User, map[string]any, Scope, error) {
 	// userFromCache, ok1 := m.CacheSess.getUser(token)
 	// dataFromCache, ok2 := m.CacheSess.getData(token)
 	// if ok1 && ok2 {
@@ -114,15 +114,16 @@ func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, 
 	hashArr := sha256.Sum256([]byte(token))
 	hash := hashArr[:]
 	var data []byte
+	var scope string
 
-	query := `SELECT id,created_at,name,email,password_hash,activated,version,data
+	query := `SELECT id,created_at,name,email,password_hash,activated,version,data,scope
 			FROM users JOIN token ON token.user_id=users.id WHERE token.hash=$1
-			AND token.scope=$2 AND token.expiry>$3`
+			AND token.expiry>$3`
 	timeNow := time.Now().UTC().Format("2006-01-02 15:04:05+00")
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	var user User
-	err := m.Pool.QueryRow(ctxTimeout, query, hash, scope, timeNow).Scan(
+	err := m.Pool.QueryRow(ctxTimeout, query, hash, timeNow).Scan(
 		&user.ID,
 		&user.CreatedAt,
 		&user.Name,
@@ -131,13 +132,14 @@ func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, 
 		&user.Activated,
 		&user.Version,
 		&data,
+		&scope,
 	)
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return nil, nil, ErrNoRows
+			return nil, nil, ScopeUnknown, ErrNoRows
 		default:
-			return nil, nil, err
+			return nil, nil, ScopeUnknown, err
 		}
 	}
 	// data could be nil so giveing default val
@@ -146,11 +148,11 @@ func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string, 
 		dataReader := bytes.NewReader(data)
 		err = gob.NewDecoder(dataReader).Decode(&dataMap)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, ScopeUnknown, err
 		}
 	}
 	// m.CacheSess.setUser(token, &user, dataMap)
-	return &user, dataMap, nil
+	return &user, dataMap, Scope(scope), nil
 }
 
 // return [ErrNoRows] if no users

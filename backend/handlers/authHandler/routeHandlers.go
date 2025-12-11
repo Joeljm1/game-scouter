@@ -105,7 +105,8 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		app.ValidationErrResponse(w, r, v.Errors)
 		return
 	}
-	user, _, err := app.Models.UserModel.GetUserfromTokenWithSess(r.Context(), token, data.ScopeActivation)
+	// not put in cache so get directly also getting session data i doubt is bad cause it will always be empty
+	user, _, scope, err := app.Models.UserModel.GetUserfromTokenWithSess(r.Context(), token)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRows):
@@ -114,6 +115,11 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 		default:
 			app.ServerErrResponse(w, r, err)
 		}
+		return
+	}
+	if scope != data.ScopeActivation {
+		app.LogErr("In Activation handler scope gotten from db for token was not Activation but %v", r, nil)
+		app.BadReqResponse(w, r, errors.New("Invalid token"))
 		return
 	}
 	user.Activated = true
@@ -148,7 +154,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 	// ie if token created but template execution error then token is simply created
 	// or not 🙂
 
-	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.ActivateToken.LifeDuration)
+	err = app.Login(r.Context(), w, user.ID, data.ScopeAuthentication)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -196,7 +202,7 @@ func (app *AuthApplication) LoginHandler(w http.ResponseWriter, r *http.Request)
 		app.LoginErr(w, r)
 		return
 	}
-	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration)
+	err = app.Login(r.Context(), w, user.ID, data.ScopeAuthentication)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return
@@ -347,7 +353,7 @@ func (app *AuthApplication) googleOIDCRedirectHandler(w http.ResponseWriter, r *
 		return
 
 	}
-	err = app.Login(r.Context(), w, user.ID, app.Cfg.TokenLife.AuthToken.LifeDuration)
+	err = app.Login(r.Context(), w, user.ID, data.ScopeOIDC)
 	if err != nil {
 		app.ServerErrResponse(w, r, err)
 		return

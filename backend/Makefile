@@ -36,3 +36,8 @@ db/migration/up: confirm
 db/migration/down: confirm
 	@echo "Running migrations"
 	migrate -path ./migrations/ -database ${SCOUTER_DB_DSN} down
+
+## db/migrations/new v=$1: force to version v if dirty found
+.PHONY: db/migration/force
+db/migration/force: confirm
+	@migrate -path ./migrations/ -database ${SCOUTER_DB_DSN} force ${v}

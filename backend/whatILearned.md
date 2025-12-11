@@ -9,4 +9,12 @@
     - Ex: i first planned in login with mail only later thought of OIDC now i have many problems due to the invalidation of various assumptions like every user has password and all so had to refactor a lot
 - OIDC is not hard to do if everyone followed the protocol unlike github
     - not sure if github one is bad though as it is easier to implement individually than oidc protocol
-
+- If making tokens and have different type like activation and authorisation then make sure to check auth toke not given by user in activation handler 
+    - It sounds obvious but i had forgotten after a long time in codebase and while doing refactors
+- Type safety just means it compiles and obeys your types(assumptions) not that your types(assumptions) are correct 
+    - Dont be overconfident that code is type safe the types could be wrong to
+- Observe abstractions before making abstractions 
+    - There are exceptions 
+        - If using a third party lib better to abstract that lib to interfaces (not literal go interfaces in general meaning) so that if that lib is found to be not enough only a small part needs to be rewritten
+- Better to take time and thing of a simple solution than imediatly do first thing in mind
+    - Simplicity is king

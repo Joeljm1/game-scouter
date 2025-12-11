@@ -1,5 +1,3 @@
-// WARN: Prolly need to use atomic.Int instead of lock for [CachedUser.lastUsed]
-// need to profile then to
 package data
 
 import (
@@ -8,10 +6,13 @@ import (
 	"time"
 )
 
+// WARN: Prolly need to use atomic.Int instead of lock for [CachedUser.lastUsed]
+// need to profile then to
 type CachedUser struct {
 	User     *User
 	Data     map[string]any
 	lastUsed time.Time
+	Scope    Scope
 }
 
 func NewCache(ttl time.Duration) *CachedSess {
@@ -53,20 +54,21 @@ func (cs *CachedSess) getData(token string) (map[string]any, bool) {
 	return cUser.Data, true
 }
 
-// dataMap will not be nil
-func (cs *CachedSess) getUserAndData(token string) (*User, map[string]any, bool) {
+// dataMap will not be nil.
+// return the user,their session data and token scope
+func (cs *CachedSess) getUserAndData(token string) (*User, map[string]any, Scope, bool) {
 	cs.RLock()
 	defer cs.RUnlock()
 	cUser, ok := cs.users[token]
 	if !ok {
-		return nil, nil, false
+		return nil, nil, ScopeUnknown, false
 	}
 	//WARN: Race cond
 	cUser.lastUsed = time.Now()
-	return cUser.User, cUser.Data, true
+	return cUser.User, cUser.Data, cUser.Scope, true
 }
 
-func (cs *CachedSess) setUser(token string, user *User, data map[string]any) {
+func (cs *CachedSess) setUser(token string, user *User, data map[string]any, scope Scope) {
 	if data == nil {
 		//WARN: can panic here
 		panic("data should be never nil should set empty val if nil")
@@ -77,6 +79,7 @@ func (cs *CachedSess) setUser(token string, user *User, data map[string]any) {
 		User:     user,
 		Data:     data,
 		lastUsed: time.Now(),
+		Scope:    scope,
 	}
 }
 

@@ -14,17 +14,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type Scope string
+
 const (
-	ScopeActivation     = "Activation"
-	ScopeAuthentication = "Authentication"
-	ScopeOIDC           = "OIDC_Authentication"
+	ScopeActivation     Scope = "Activation"
+	ScopeAuthentication Scope = "Authentication"      // for email password
+	ScopeOIDC           Scope = "OIDC_Authentication" // for OIDC
+	ScopeUnknown        Scope = "Unknown"             // for errors ig
 )
 
 type Token struct {
 	UserID    int64     `json:"-"`
 	Plaintext string    `json:"-"`
 	Hash      []byte    `json:"hash"`
-	Scope     string    `json:"scope"`
+	Scope     Scope     `json:"scope"`
 	Expiry    time.Time `json:"expiry"`
 	Data      []byte    `json:"-"`
 	//TODO: add auth type to may be in scope??
@@ -35,7 +38,7 @@ type TokenModel struct {
 }
 
 // WARN: Data initially nil
-func GenerateToken(userID int64, ttl time.Duration, scope string) (*Token, error) {
+func GenerateToken(userID int64, ttl time.Duration, scope Scope) (*Token, error) {
 	tok := &Token{
 		UserID: userID,
 		Scope:  scope,
@@ -84,7 +87,7 @@ func (m *TokenModel) Update(ctx context.Context, tok *Token) error {
 }
 
 // Generated token and inserts it to db
-func (m *TokenModel) GenerateAndInsertToken(ctx context.Context, userID int64, ttl time.Duration, scope string) (*Token, error) {
+func (m *TokenModel) GenerateAndInsertToken(ctx context.Context, userID int64, ttl time.Duration, scope Scope) (*Token, error) {
 	tok, err := GenerateToken(userID, ttl, scope)
 	if err != nil {
 		return nil, err
@@ -98,7 +101,7 @@ func ValidateToken(v *validator.Validator, token string) {
 	v.Assert(len(token) == 26, "tokenVal", "not valid")
 }
 
-func (m *TokenModel) DeleteAllToken(ctx context.Context, userID int64, scope string) error {
+func (m *TokenModel) DeleteAllToken(ctx context.Context, userID int64, scope Scope) error {
 	query := `DELETE FROM token WHERE user_id=$1 AND scope=$2`
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()

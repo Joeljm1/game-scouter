@@ -102,7 +102,6 @@ func (app *AuthApplication) VerifyOIDCNonceAndEmail(r *http.Request, nonce *stri
 }
 
 func WelcomeHTML(name string) (*bytes.Buffer, error) {
-
 	buff := new(bytes.Buffer)
 	tmplData := struct {
 		Name string

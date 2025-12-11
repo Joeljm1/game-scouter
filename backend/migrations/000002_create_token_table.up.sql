@@ -3,6 +3,9 @@ CREATE TABLE token (
 	hash bytea PRIMARY KEY,
 	expiry timestamp(0) with time zone NOT NULL,
 	scope text NOT NULL,
-	data bytea,
+	data bytea
   --TODO: Add column for is Email type or not or may be as a scope??
-)
+);
+
+CREATE INDEX token_hash_idx  ON token(hash)
+

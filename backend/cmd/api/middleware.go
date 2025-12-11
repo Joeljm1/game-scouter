@@ -181,7 +181,7 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 				return
 			}
 			http.SetCookie(w, cookie)
-			req := app.SetUserDetailsToCtx(r, data.AnonymousUser(), tok.Plaintext, map[string]any{})
+			req := app.SetUserDetailsToCtx(r, data.AnonymousUser(), tok.Plaintext, map[string]any{}, data.ScopeUnknown)
 			next.ServeHTTP(w, req)
 			m, _ := app.WrittenSess(req)
 			if m != nil {
@@ -200,7 +200,7 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 			app.ValidationErrResponse(w, r, v.Errors)
 			return
 		}
-		user, dataMap, err := app.Models.GetUserWithData(r.Context(), token)
+		user, dataMap, scope, err := app.Models.GetUserWithData(r.Context(), token)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRows):
@@ -214,7 +214,7 @@ func (app *serverApplication) Authenticate(next http.Handler) http.Handler {
 		if user.ID == 0 {
 			user = data.AnonymousUser()
 		}
-		req := app.SetUserDetailsToCtx(r, user, token, dataMap)
+		req := app.SetUserDetailsToCtx(r, user, token, dataMap, scope)
 		next.ServeHTTP(w, req)
 		//TODO: remaining prolly have to use my custom respWriter
 
@@ -254,7 +254,8 @@ func (app *serverApplication) reqAuthUser(next http.Handler) http.Handler {
 func (app *serverApplication) reqActivatedUser(next http.Handler) http.Handler {
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.GetUser(r)
-		if !user.Activated {
+		scope := app.GetScope(r)
+		if scope != data.ScopeOIDC && !user.Activated {
 			app.NotActivatedResponse(w, r)
 			return
 		}

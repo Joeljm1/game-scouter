@@ -143,9 +143,10 @@ func GetFromQuery(r *http.Request, key string) string {
 var userKey = data.ContextKey("user")
 
 type UserVal struct {
-	User *data.User
-	Tok  string
-	Data *SessionData
+	User  *data.User
+	Tok   string
+	Data  *SessionData
+	Scope data.Scope
 }
 
 type SessionData struct {
@@ -176,7 +177,9 @@ func (sd *SessionData) Get(key string) (any, bool) {
 }
 
 // sets user,session data map and toekn val to context
-func (app *Application) SetUserDetailsToCtx(r *http.Request, user *data.User, tok string, data map[string]any) *http.Request {
+func (app *Application) SetUserDetailsToCtx(
+	r *http.Request, user *data.User, tok string, data map[string]any, scope data.Scope,
+) *http.Request {
 	if user == nil || tok == "" {
 		//TODO: prolly make this an error instead
 		panic("user is nill or token is empty")
@@ -189,6 +192,7 @@ func (app *Application) SetUserDetailsToCtx(r *http.Request, user *data.User, to
 			data:    data,
 			written: false,
 		},
+		Scope: scope,
 	}
 	ctx := context.WithValue(r.Context(), userKey, setVal)
 	req := r.WithContext(ctx)
@@ -203,6 +207,13 @@ func (app *Application) GetUser(r *http.Request) *data.User {
 	return userVal.User
 }
 
+func (app *Application) GetScope(r *http.Request) data.Scope {
+	userVal, ok := r.Context().Value(userKey).(*UserVal)
+	if !ok || userVal.User == nil {
+		panic("User not found")
+	}
+	return userVal.Scope
+}
 func (app *Application) GetTok(r *http.Request) string {
 	userVal, ok := r.Context().Value(userKey).(*UserVal)
 	if !ok || userVal.Tok == "" {
