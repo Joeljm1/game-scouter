@@ -20,7 +20,12 @@ type Envelope map[string]any // envelopes the JSON
 
 // WriteJSON writes a struct as json to w
 // error can come only before writing to it
-// so if error comes you can custom write
+// so if error comes you can custom write.
+//
+// Using [json.Marshal] instead of [json.Encoder] to make json even though encoder is very very slightly faster
+// because if later if want to set liek cache headers or smthing then i should set it based on if error occured on writing
+// to header then i nencoder i need to write to a [bytes.Buffer] or smthing similar which defeats the performance problem
+// not a major reason to chose over encoder.
 func (app *Application) WriteJSON(w http.ResponseWriter, status int, data Envelope, headers http.Header) error {
 	js, err := json.Marshal(data)
 	if err != nil {
@@ -37,11 +42,15 @@ func (app *Application) WriteJSON(w http.ResponseWriter, status int, data Envelo
 }
 
 // ReadJSON Read r and get json from request body as struct.
-// Give pointer to struct(dst cal)
+// Give non nil pointer to struct(dst cal)
+//
+// Decoder has a more significant difference in performance to UnMarshall
 func (app *Application) ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	// Use http.MaxBytesReader() to limit the size of the request body to 1MB.
 	maxBytes := 1_048_576
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+	// Body is never nil for server side
+	defer r.Body.Close()
 	dec := json.NewDecoder(r.Body)
 	// Initialize the json.Decoder, and call the DisallowUnknownFields() method on it
 	// before decoding. This means that if the JSON from the client now includes any

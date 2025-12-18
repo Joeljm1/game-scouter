@@ -45,9 +45,14 @@ func (app *serverApplication) RecoverPanic(next http.Handler) http.Handler {
 	})
 }
 
-// May be make limiter based on user ID later instead of IP
+// May be make limiter based on user ID later instead of IP.
+//
 // WARN: Need to check if this can cause error
-// cause its my custom rate limiter
+// cause its my custom rate limiter.
+// Also not sure if the mutex sharding was really needed.
+// Also if i attack in mutiple router multiple shard will be created but this is
+// used only in the main router so no problem
+// if problem later move it a init() or smthing
 func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 	shards := ratelimiter.NewNShards(app.Cfg.Limiter.ShardNo)
 	go shards.CleanShardStore()
@@ -135,6 +140,7 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" { // if preflight request
 					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Hi-From-Frontend") // add more if needed
+					//TODO: change from hardcode to config
 					w.Header().Set("Access-Control-Max-Age", "86400")
 					w.WriteHeader(http.StatusNoContent)
 					return
@@ -148,6 +154,7 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 // NOTE: Used to prevent csrf attack for endpoints that cause changes
 // as session cookie is of type SameSiteNone mode due to sep frontend and backend
 // look into may be checking Sec-Fetch-Site and Orgin headers to for modern browsers like stdlib does it
+//
 // this method is from [https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#employing-custom-request-headers-for-ajaxapi]
 func (app *serverApplication) CheckCustomHeader(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

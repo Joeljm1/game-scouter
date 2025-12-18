@@ -2,6 +2,7 @@ package auth
 
 import (
 	"embed"
+	"game-scouter-api/internal/application"
 	"html/template"
 	"net/http"
 
@@ -30,4 +31,9 @@ func (app *AuthApplication) Routes() http.Handler {
 	r.Get("/google/oidcURL", app.getGoogleOidcUrlHandler)
 	r.Get("/google/redirect", app.googleOIDCRedirectHandler)
 	return r
+}
+
+func Routes(app *application.Application) http.Handler {
+	authHander := AuthApplication{Application: app}
+	return authHander.Routes()
 }

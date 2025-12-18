@@ -26,8 +26,7 @@ func (app *serverApplication) routes() http.Handler {
 	mux.Get("/v1/health", app.healthCheck)
 
 	// mount other handlers here
-	authHander := auth.AuthApplication{Application: app.Application}
-	mux.Mount("/auth", authHander.Routes())
+	mux.Mount("/auth", auth.Routes(app.Application))
 
 	return mux
 }

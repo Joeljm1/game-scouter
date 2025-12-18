@@ -36,7 +36,8 @@ func (cs *CachedSess) getUser(token string) (*User, bool) {
 	if !ok {
 		return nil, false
 	}
-	//WARN: Race cond
+	//WARN: Race cond but dont think it matters cause like if a user had accessed session with
+	// time period close enough for a race cond, it wouldnt matter which won
 	user.lastUsed = time.Now()
 	return user.User, true
 }
@@ -49,7 +50,7 @@ func (cs *CachedSess) getData(token string) (map[string]any, bool) {
 	if !ok {
 		return nil, false
 	}
-	//WARN: Race cond
+	//WARN: Race cond with same reason above on why its prolly is fine
 	cUser.lastUsed = time.Now()
 	return cUser.Data, true
 }
@@ -63,14 +64,14 @@ func (cs *CachedSess) getUserAndData(token string) (*User, map[string]any, Scope
 	if !ok {
 		return nil, nil, ScopeUnknown, false
 	}
-	//WARN: Race cond
+	//WARN: Race cond with same reason above on why its prolly is fine
 	cUser.lastUsed = time.Now()
 	return cUser.User, cUser.Data, cUser.Scope, true
 }
 
 func (cs *CachedSess) setUser(token string, user *User, data map[string]any, scope Scope) {
 	if data == nil {
-		//WARN: can panic here
+		//WARN: Race cond with same reason above on why its prolly is fine
 		panic("data should be never nil should set empty val if nil")
 	}
 	cs.Lock()

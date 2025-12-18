@@ -12,7 +12,12 @@ confirm:
 ## run/api: run the cmd/api application
 .PHONY: run/api
 run/api:
-	go run ./cmd/api 
+	go run ./cmd/api
+
+## run/help: provide config details for cmd/api application
+.PHONY: run/help
+run/help:
+	go run ./cmd/api --help
 
 ## db/migrations/new name=$1: create a new database migration
 .PHONY: db/migration/new
