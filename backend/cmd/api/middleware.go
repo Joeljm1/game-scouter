@@ -52,10 +52,10 @@ func (app *serverApplication) RecoverPanic(next http.Handler) http.Handler {
 // Also not sure if the mutex sharding was really needed.
 // Also if i attack in mutiple router multiple shard will be created but this is
 // used only in the main router so no problem
-// if problem later move it a init() or smthing
+// if problem later move it a init() or [serverApplication.run] or Configure() fn
 func (app *serverApplication) RateLimit(next http.Handler) http.Handler {
 	shards := ratelimiter.NewNShards(app.Cfg.Limiter.ShardNo)
-	go shards.CleanShardStore()
+	go shards.CleanShardStore(app.Cfg.Ctx)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if app.Cfg.Limiter.Enabled {
 			ip, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -138,7 +138,7 @@ func (app *serverApplication) EnableCORS(next http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" { // if preflight request
-					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Hi-From-Frontend") // add more if needed
 					//TODO: change from hardcode to config
 					w.Header().Set("Access-Control-Max-Age", "86400")

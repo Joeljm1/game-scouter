@@ -118,7 +118,7 @@ func (m *UserModel) GetUserfromTokenWithSess(ctx context.Context, token string) 
 
 	query := `SELECT id,created_at,name,email,password_hash,activated,version,data,scope
 			FROM users JOIN token ON token.user_id=users.id WHERE token.hash=$1
-			AND token.expiry>$3`
+			AND token.expiry>$2`
 	timeNow := time.Now().UTC().Format("2006-01-02 15:04:05+00")
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()

@@ -18,9 +18,10 @@ import (
 )
 
 type Application struct {
-	Cfg          *Config
-	Logger       *slog.Logger
-	Models       data.Models
+	Cfg    *Config
+	Logger *slog.Logger
+	Models data.Models
+	// this would did allow copying idk if that is good
 	BackgroundWG sync.WaitGroup
 	Mailer       *mailer.Mailer
 	HttpClient   *http.Client

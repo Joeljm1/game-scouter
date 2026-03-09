@@ -1,6 +1,7 @@
 package ratelimiter
 
 import (
+	"context"
 	"hash/fnv"
 	"math"
 	"sync"
@@ -102,13 +103,18 @@ func NewNShards(n int) ShardStore {
 
 // WARN: Check if it updates orginal and muterx is not copies
 // Prolly should not as mutex has noCopy struct
-func (ss ShardStore) CleanShardStore() {
+func (ss ShardStore) CleanShardStore(ctx context.Context) {
 	maxTurn := len(ss)
 	currTurn := 0
+	ticker := time.NewTicker(time.Minute)
 	for {
-		ss[currTurn].CleanShard()
-		currTurn = (currTurn + 1) % maxTurn
-		time.Sleep(time.Minute)
+		select {
+		case <-ticker.C:
+			ss[currTurn].CleanShard()
+			currTurn = (currTurn + 1) % maxTurn
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

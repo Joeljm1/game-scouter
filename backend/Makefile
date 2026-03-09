@@ -1,5 +1,9 @@
 include .envrc
 
+.PHONY: default
+default:
+	go run ./cmd/api
+
 .PHONY: help
 help:
 	@echo "usage"
@@ -14,6 +18,8 @@ confirm:
 run/api:
 	go run ./cmd/api
 
+run/build:
+	go build ./cmd/api
 ## run/help: provide config details for cmd/api application
 .PHONY: run/help
 run/help:
