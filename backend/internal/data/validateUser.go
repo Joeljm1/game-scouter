@@ -39,7 +39,3 @@ func ValidateUser(v *validator.Validator, name string, email string, password st
 	}
 	return nil
 }
-fvcdfertvrfdtgvrftdvrfgvb
-vbrfg
-vrfdtvb rfdg
-vb
