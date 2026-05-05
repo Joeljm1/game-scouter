@@ -2,3 +2,9 @@
 
 GET http://localhost:4000/auth/google/oidcURL HTTP/1.1
 Cookie: SessionCookie=OYWWQH4TT7XFRY4KR5PGG4RDXA
+
+
+### 
+
+GET https://catalog.gamepass.com/sigls/v2?id=fdd9e2a7-0fee-49f6-ad69-4354098401ff&language=en-us&market=US HTTP/1.1
+Cookie: SessionCookie=OYWWQH4TT7XFRY4KR5PGG4RDXA

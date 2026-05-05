@@ -32,12 +32,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	v := validator.NewValidator()
-	user := data.User{
-		Name:      req.Name,
-		Email:     req.Email,
-		Activated: false,
-	}
-	user.Validate(v, req.Password)
+	user := data.ValidateUser(v, req.Name, req.Email, req.Password)
 	if !v.Valid() {
 		app.ValidationErrResponse(w, r, v.Errors)
 		return
@@ -49,7 +44,7 @@ func (app *AuthApplication) RegisterUserHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	user.Password = psswd
-	err = app.Models.UserModel.InsertUser(r.Context(), &user)
+	err = app.Models.UserModel.InsertUser(r.Context(), user)
 	if err != nil {
 		switch {
 		// dont think [data.ErrUniqueViolation] will ever come may remove it later after checking
@@ -119,7 +114,7 @@ func (app *AuthApplication) ActivateUserHandler(w http.ResponseWriter, r *http.R
 	}
 	if scope != data.ScopeActivation {
 		app.LogErr("In Activation handler scope gotten from db for token was not Activation but %v", r, nil)
-		app.BadReqResponse(w, r, errors.New("Invalid token"))
+		app.BadReqResponse(w, r, errors.New("invalid token"))
 		return
 	}
 	user.Activated = true

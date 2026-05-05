@@ -42,7 +42,7 @@ func (cs *CachedSess) getUser(token string) (*User, bool) {
 	return user.User, true
 }
 
-// dataMap will not be nil
+// dataMap will not be nil if present in cache
 func (cs *CachedSess) getData(token string) (map[string]any, bool) {
 	cs.RLock()
 	defer cs.RUnlock()
@@ -55,7 +55,7 @@ func (cs *CachedSess) getData(token string) (map[string]any, bool) {
 	return cUser.Data, true
 }
 
-// dataMap will not be nil.
+// dataMap will not be nil if present in cache.
 // return the user,their session data and token scope
 func (cs *CachedSess) getUserAndData(token string) (*User, map[string]any, Scope, bool) {
 	cs.RLock()

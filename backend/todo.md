@@ -18,4 +18,4 @@
 3) [X] Make it compile
 4) [ ] Check for security issues
 5) [ ] Changes to token table to add type of auth done so that i can check activated user field only if token type is email
-6) [ ] Or may be add a scope to token instead of column omgg!! that easier
+6) [X] Or may be add a scope to token instead of column omgg!! that easier
