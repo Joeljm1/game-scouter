@@ -18,3 +18,4 @@
         - If using a third party lib better to abstract that lib to interfaces (not literal go interfaces in general meaning) so that if that lib is found to be not enough only a small part needs to be rewritten
 - Better to take time and thing of a simple solution than imediatly do first thing in mind
     - Simplicity is king
+- LRU cache using a double linked list and a hashmap

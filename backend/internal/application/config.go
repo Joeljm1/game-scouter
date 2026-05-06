@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"game-scouter-api/internal/application/OIDC/google"
 	"time"
 
@@ -92,8 +91,6 @@ func (cfg *Config) Configure() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(cfg.Cache.CleanDur.String())
-	fmt.Println(cfg.Cache.CacheTTL.String())
 	return nil
 }
 
