@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"game-scouter-api/internal/application/OIDC/google"
 	"time"
 
@@ -54,37 +55,46 @@ type Config struct {
 		OIDCStateKey string
 		OIDCNonceKey string
 	}
+	Cache struct {
+		MaxEntries  int
+		CacheTTLStr string
+		CleanDurStr string
+		CleanDur    time.Duration
+		CacheTTL    time.Duration
+	}
 }
 
-func (cfg *Config) ConfigureAuthTokenLife() error {
-	t, err := time.ParseDuration(cfg.TokenLife.AuthToken.LifeStr)
+func ParseDurAndSet(s string, d *time.Duration) error {
+	t, err := time.ParseDuration(s)
 	if err != nil {
 		return err
 	}
-	cfg.TokenLife.AuthToken.LifeDuration = t
-	return nil
-}
-
-func (cfg *Config) ConfigureActivateTokenLife() error {
-	t, err := time.ParseDuration(cfg.TokenLife.ActivateToken.LifeStr)
-	if err != nil {
-		return err
-	}
-	cfg.TokenLife.ActivateToken.LifeDuration = t
+	*d = t
 	return nil
 }
 
 func (cfg *Config) Configure() error {
-	err := cfg.ConfigureAuthTokenLife()
+	err := ParseDurAndSet(cfg.TokenLife.AuthToken.LifeStr, &cfg.TokenLife.AuthToken.LifeDuration)
 	if err != nil {
 		return err
 	}
-	err = cfg.ConfigureActivateTokenLife()
-	if err != nil {
-		return err
-	}
-	return nil
 
+	err = ParseDurAndSet(cfg.TokenLife.ActivateToken.LifeStr, &cfg.TokenLife.ActivateToken.LifeDuration)
+	if err != nil {
+		return err
+	}
+
+	err = ParseDurAndSet(cfg.Cache.CacheTTLStr, &cfg.Cache.CacheTTL)
+	if err != nil {
+		return err
+	}
+	err = ParseDurAndSet(cfg.Cache.CleanDurStr, &cfg.Cache.CleanDur)
+	if err != nil {
+		return err
+	}
+	fmt.Println(cfg.Cache.CleanDur.String())
+	fmt.Println(cfg.Cache.CacheTTL.String())
+	return nil
 }
 
 func openDB(cfg Config) (*pgxpool.Pool, error) {

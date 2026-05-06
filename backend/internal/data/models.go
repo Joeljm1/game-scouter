@@ -15,8 +15,8 @@ type Models struct {
 	CacheSess  *CachedSess
 }
 
-func NewModels(pool *pgxpool.Pool, ctx context.Context) Models {
-	cs := NewCache(5*time.Minute, 10_000) //FIX: number temporary
+func NewModels(pool *pgxpool.Pool, ctx context.Context, maxEntries int, cacheTTL time.Duration, cleanDur time.Duration) Models {
+	cs := NewCache(cacheTTL, cleanDur, maxEntries) //FIX: number temporary
 	//TODO:i doubt this will panic but ther could be nil pointer so need to put a
 	//recover over it
 	go cs.clean(ctx)

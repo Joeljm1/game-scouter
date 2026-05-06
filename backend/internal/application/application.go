@@ -94,6 +94,11 @@ func App() *Application {
 	flag.StringVar(&cfg.Auth.OIDCStateKey, "OIDCStateKey", "OIDCState", "key for storing OIDC state for CSRF protection")
 	flag.StringVar(&cfg.Auth.OIDCNonceKey, "OIDCNonceKey", "OIDCNonce", "key for storing OIDC nonce for oidc")
 
+	//cache
+	flag.IntVar(&cfg.Cache.MaxEntries, "CacheEntries", 10_000, "no of cache entries for user session in LRU cache")
+	flag.StringVar(&cfg.Cache.CacheTTLStr, "userCacheTTL", "5m", "time to live for a user session cache")
+	flag.StringVar(&cfg.Cache.CleanDurStr, "userCacheCleanDuration", "15m", "interval for cleaning expired cache")
+
 	flag.Parse()
 
 	app := &Application{
@@ -121,7 +126,7 @@ func (app *Application) Configure() error {
 	if err != nil {
 		return err
 	}
-	app.Models = data.NewModels(pool, cfg.Ctx)
+	app.Models = data.NewModels(pool, cfg.Ctx, cfg.Cache.MaxEntries, cfg.Cache.CacheTTL, cfg.Cache.CleanDur)
 	m, err := mailer.New(cfg.SMTP.Host, cfg.SMTP.Username, cfg.SMTP.Password, cfg.SMTP.Sender, cfg.SMTP.Port)
 	if err != nil {
 		return err
