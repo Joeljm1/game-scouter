@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -172,7 +173,7 @@ func TestCachedSess_setUserWithZeroCapacityDoesNotCache(t *testing.T) {
 	if len(cs.users) != 0 || cs.entryNo != 0 {
 		t.Fatalf("zero capacity cache size = len %d entryNo %d, want 0/0", len(cs.users), cs.entryNo)
 	}
-	assertCacheOrder(t, cs, nil)
+	assertCacheOrder(t, cs, []string{})
 	assertCacheLinks(t, cs)
 }
 
@@ -190,6 +191,54 @@ func TestCachedSess_removeLastUser(t *testing.T) {
 	}
 }
 
+func TestCachedSess_cleanRemovesExpiredEntries(t *testing.T) {
+	cs := NewCache(25*time.Millisecond, 5*time.Millisecond, 3)
+	mustSetCachedUser(t, cs, "expired-one", 1, ScopeAuthentication, map[string]any{"n": 1})
+	mustSetCachedUser(t, cs, "expired-two", 2, ScopeOIDC, map[string]any{"n": 2})
+	mustSetCachedUser(t, cs, "fresh", 3, ScopeActivation, map[string]any{"n": 3})
+
+	cs.mut.Lock()
+	cs.users["expired-one"].lastUsed = time.Now().Add(-time.Minute)
+	cs.users["expired-two"].lastUsed = time.Now().Add(-time.Minute)
+	cs.users["fresh"].lastUsed = time.Now()
+	cs.mut.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cs.clean(ctx)
+	}()
+
+	deadline := time.After(200 * time.Millisecond)
+	for {
+		cs.mut.Lock()
+		_, expiredOneOK := cs.users["expired-one"]
+		_, expiredTwoOK := cs.users["expired-two"]
+		_, freshOK := cs.users["fresh"]
+		entryNo := cs.entryNo
+		cs.mut.Unlock()
+
+		if !expiredOneOK && !expiredTwoOK && freshOK && entryNo == 1 {
+			break
+		}
+
+		select {
+		case <-deadline:
+			cancel()
+			<-done
+			t.Fatalf("clean() did not remove only expired entries before timeout: expired-one=%v expired-two=%v fresh=%v entryNo=%d", expiredOneOK, expiredTwoOK, freshOK, entryNo)
+		case <-time.After(time.Millisecond):
+		}
+	}
+
+	cancel()
+	<-done
+
+	assertCacheOrder(t, cs, []string{"fresh"})
+	assertCacheLinks(t, cs)
+}
+
 func mustSetCachedUser(t *testing.T, cs *CachedSess, token string, userID int64, scope Scope, data map[string]any) {
 	t.Helper()
 	if err := cs.setUser(token, &User{ID: userID}, data, scope); err != nil {
@@ -200,13 +249,13 @@ func mustSetCachedUser(t *testing.T, cs *CachedSess, token string, userID int64,
 func assertCacheOrder(t *testing.T, cs *CachedSess, want []string) {
 	t.Helper()
 
-	var got []string
+	var got = []string{}
 	for user := cs.head.next; user != nil && user != cs.tail; user = user.next {
 		got = append(got, user.token)
-		//TODO: verify
-		if len(got) > len(cs.users)+1 {
-			t.Fatal("cache list contains a cycle")
-		}
+	}
+
+	if len(got) != len(cs.users) {
+		t.Fatalf("cache list has %d entries, users map has %d", len(got), len(cs.users))
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("cache order = %#v, want %#v", got, want)
