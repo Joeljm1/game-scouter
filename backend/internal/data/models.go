@@ -16,7 +16,7 @@ type Models struct {
 }
 
 func NewModels(pool *pgxpool.Pool, ctx context.Context) Models {
-	cs := NewCache(5 * time.Minute)
+	cs := NewCache(5*time.Minute, 10_000) //FIX: number temporary
 	//TODO:i doubt this will panic but ther could be nil pointer so need to put a
 	//recover over it
 	go cs.clean(ctx)
@@ -41,6 +41,6 @@ func (m Models) GetUserWithData(ctx context.Context, tok string) (*User, map[str
 	if err != nil {
 		return nil, nil, ScopeUnknown, err
 	}
-	m.CacheSess.setUser(tok, user, dataMap, scope)
-	return user, dataMap, scope, nil
+	err = m.CacheSess.setUser(tok, user, dataMap, scope)
+	return user, dataMap, scope, err
 }
